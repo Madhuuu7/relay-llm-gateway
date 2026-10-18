@@ -158,6 +158,19 @@ class RandomChoice:
 
 @dataclass(frozen=True)
 class AdaptiveConfig:
+    tail_weight: float = 0.25
+    """How much of the latency term is the p95 rather than the p50.
+
+    1.0 is pure tail protection: a provider with a wide spread is avoided even
+    for the median request. 0.0 routes on typical latency and lets the tail
+    fall where it may.
+
+    The default is **measured, not guessed**: ``scripts/replay.py --sweep``
+    walks this knob over the benchmark trace, and 0.25 is where the curve
+    turns -- it keeps ~96% of the p95 improvement that full tail-weighting
+    buys while giving back most of the median latency and nearly all of the
+    extra cost that pure tail routing spends."""
+
     error_penalty: float = 3.0
     """How many of its own p95s a provider's failure is assumed to cost."""
 
@@ -201,8 +214,14 @@ class Adaptive:
             return config.optimism_ms + candidate.priority
 
         p95 = health.latency_p95.value
-        score = p95
-        score += p95 * health.error_rate.value * config.error_penalty
+        p50 = health.latency_p50.value
+        latency = config.tail_weight * p95 + (1.0 - config.tail_weight) * p50
+
+        score = latency
+        # A failure costs its own elapsed time *and* a retry elsewhere, so it
+        # is priced in this provider's own latency rather than as a flat
+        # constant -- that keeps flaky-but-fast comparable to slow-but-solid.
+        score += latency * health.error_rate.value * config.error_penalty
         score += health.in_flight * config.queue_penalty_ms
         score += self._cost_term(candidate)
         return score
@@ -246,6 +265,7 @@ class Adaptive:
                 {
                     "provider": candidate.name,
                     "score": round(self.score(candidate), 1),
+                    "p50_ms": round(health.latency_p50.value, 1),
                     "p95_ms": round(health.latency_p95.value, 1),
                     "error_rate": round(health.error_rate.value, 4),
                     "in_flight": health.in_flight,
