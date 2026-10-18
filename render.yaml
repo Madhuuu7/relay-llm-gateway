@@ -1,0 +1,28 @@
+# Render free-tier deployment: one web service serving the gateway API and the
+# console, so there is no second origin and no CORS to get wrong.
+#
+# No provider keys are set here on purpose. Without them the gateway boots its
+# synthetic providers, which is what makes the public link a working demo
+# rather than a 502 -- and means the deployed instance cannot spend money.
+# Add ANTHROPIC_API_KEY or OPENAI_API_KEY in the Render dashboard to route to
+# real providers; the demo load generator disables itself when they are set.
+#
+# RELAY_DB goes under /tmp because the free tier has an ephemeral disk: the
+# request log is a single-node operational log, and losing it on restart is
+# the documented trade (see "Known limits" in the README), not a surprise.
+services:
+  - type: web
+    name: relay
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -e .
+    startCommand: uvicorn relay.api.app:app --app-dir src --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: RELAY_POLICY
+        value: adaptive
+      - key: RELAY_DB
+        value: /tmp/relay.db
