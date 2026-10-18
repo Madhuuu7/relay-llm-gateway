@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>relay &middot; gateway console</title>
+<style>
+  :root {
+    --bg: #0c0e13;
+    --panel: #14171f;
+    --panel-2: #1a1e28;
+    --line: #262b37;
+    --ink: #e6e9ef;
+    --ink-dim: #8b93a5;
+    --ink-faint: #5b6376;
+    --ok: #3ddc97;
+    --warn: #f5b942;
+    --bad: #ff6b6b;
+    --accent: #6aa6ff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #11141b, #0c0e13);
+    position: sticky; top: 0; z-index: 5;
+  }
+  .brand { font: 600 19px/1 var(--mono); letter-spacing: -0.3px; }
+  .brand span { color: var(--accent); }
+  .tagline { color: var(--ink-faint); font-size: 12.5px; max-width: 42ch; }
+  .spacer { flex: 1 1 auto; }
+  .badge {
+    font: 600 10.5px/1 var(--mono); letter-spacing: .09em; text-transform: uppercase;
+    padding: 5px 8px; border-radius: 4px; border: 1px solid var(--line);
+    color: var(--ink-dim); background: var(--panel-2); white-space: nowrap;
+  }
+  .badge.demo { color: var(--warn); border-color: #4a3b16; background: #221b0c; }
+  .badge.live { color: var(--ok); border-color: #15422f; background: #0c2019; }
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  label.field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-dim); }
+  select, button, input {
+    font: inherit; color: var(--ink); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px;
+  }
+  select, button { cursor: pointer; }
+  button { transition: border-color .15s, color .15s; }
+  button:hover:not(:disabled) { border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: progress; }
+  button.primary { border-color: #27456f; background: #16233a; color: #cfe0ff; }
+  main { padding: 22px 24px 64px; display: grid; gap: 18px; max-width: 1400px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 12px; }
+  .tile {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 13px 14px;
+  }
+  .tile .k { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); }
+  .tile .v { font: 500 23px/1.25 var(--mono); margin-top: 7px; letter-spacing: -0.5px; }
+  .tile .sub { font-size: 11.5px; color: var(--ink-faint); font-family: var(--mono); }
+  .v.ok { color: var(--ok); } .v.warn { color: var(--warn); } .v.bad { color: var(--bad); }
+  section.panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  }
+  .panel > h2 {
+    margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line);
+    font: 600 12px/1.2 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-dim);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel > h2 .note { font: 400 11.5px/1 var(--sans); text-transform: none; letter-spacing: 0; color: var(--ink-faint); }
+  .panel > h2 .spacer { flex: 1; }
+  .body { padding: 14px 16px; }
+  .cols { display: grid; gap: 18px; grid-template-columns: 1fr; }
+  @media (min-width: 1020px) { .cols.two { grid-template-columns: 1.25fr 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; }
+  th {
+    text-align: right; font: 600 10.5px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-faint); padding: 0 0 9px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  th:first-child, td:first-child { text-align: left; }
+  td { padding: 8px 0; border-bottom: 1px solid #1d212b; text-align: right; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td + td, th + th { padding-left: 14px; }
+  .pname { color: var(--ink); }
+  .pname small { display: block; color: var(--ink-faint); font-size: 10.5px; font-family: var(--sans); white-space: normal; }
+  .state { font: 600 10px/1 var(--mono); padding: 4px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: .06em; }
+  .state.closed { color: var(--ok); background: #0c2019; }
+  .state.half_open { color: var(--warn); background: #221b0c; }
+  .state.open { color: var(--bad); background: #261416; }
+  .rank { display: grid; gap: 9px; }
+  .rank-row { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .rank-row.leader { border-color: #27456f; }
+  .rank-head { display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); font-size: 13px; }
+  .rank-head .pos { color: var(--ink-faint); width: 1.6em; }
+  .rank-head .score { margin-left: auto; color: var(--accent); }
+  .rank-why { font-size: 11.5px; color: var(--ink-faint); margin-top: 4px; }
+  .terms { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-dim); }
+  .terms b { color: var(--ink); font-weight: 500; }
+  .log { font-family: var(--mono); font-size: 12px; display: grid; gap: 3px; max-height: 420px; overflow: auto; }
+  .row {
+    display: grid; grid-template-columns: 62px 1fr 78px 86px 1fr; gap: 10px; align-items: center;
+    padding: 6px 8px; border-radius: 6px; background: var(--panel-2); border: 1px solid transparent;
+  }
+  .row.fail { border-color: #3a1d20; background: #1b1316; }
+  .row .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; background: var(--ok); }
+  .row.fail .dot { background: var(--bad); }
+  .row .chain { color: var(--ink-faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+  .row .num { text-align: right; color: var(--ink-dim); }
+  .empty { color: var(--ink-faint); font-size: 12.5px; padding: 10px 0; }
+  svg text { font-family: var(--mono); font-size: 9.5px; fill: var(--ink-faint); }
+  .legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--ink-faint); font-family: var(--mono); margin-top: 8px; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; vertical-align: -1px; margin-right: 5px; }
+  footer { padding: 0 24px 40px; color: var(--ink-faint); font-size: 12px; max-width: 1400px; }
+  footer code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-size: 11.5px; }
+  .err { color: var(--bad); font-size: 12px; font-family: var(--mono); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="brand">re<span>lay</span></div>
+    <div class="tagline">LLM gateway that routes on live p95, error rate and queue depth &mdash; not a static fallback list.</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="controls">
+    <span id="mode" class="badge">&hellip;</span>
+    <label class="field">policy
+      <select id="policy"></select>
+    </label>
+    <label class="field">window
+      <select id="window">
+        <option value="">all time</option>
+        <option value="60">60s</option>
+        <option value="300" selected>5m</option>
+        <option value="3600">1h</option>
+      </select>
+    </label>
+    <button id="load" class="primary">send 25 requests</button>
+    <span id="tick" class="badge">&mdash;</span>
+  </div>
+</header>
+
+<main>
+  <div class="tiles" id="tiles"></div>
+
+  <section class="panel">
+    <h2>traffic
+      <span class="note">10-second buckets, last 5 minutes &mdash; bars are requests, the line is bucket p95</span>
+    </h2>
+    <div class="body">
+      <div id="chart"></div>
+      <div class="legend">
+        <span><span class="swatch" style="background:#6aa6ff"></span>served</span>
+        <span><span class="swatch" style="background:#ff6b6b"></span>failed</span>
+        <span><span class="swatch" style="background:#3ddc97"></span>p95 latency</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="cols two">
+    <section class="panel">
+      <h2>providers <span class="note">live health the router reads, plus the circuit breaker</span></h2>
+      <div class="body" id="providers"></div>
+    </section>
+
+    <section class="panel">
+      <h2>ranking <span class="note">who gets the next request, and why</span></h2>
+      <div class="body"><div class="rank" id="ranking"></div></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>requests
+      <span class="spacer"></span>
+      <label class="field"><input type="checkbox" id="failures-only"> failures only</label>
+    </h2>
+    <div class="body"><div class="log" id="log"></div></div>
+  </section>
+
+  <section class="panel">
+    <h2>cost by provider <span class="note">priced per model from the built-in price book</span></h2>
+    <div class="body" id="cost"></div>
+  </section>
+</main>
+
+<footer>
+  OpenAI-compatible: point any client at <code>POST /v1/chat/completions</code> on this host and it gains
+  fail-over, health-aware routing and cost accounting. The response carries an <code>x_relay</code> block
+  naming the provider that served it and every attempt before it.
+  <span id="error" class="err"></span>
+</footer>
+
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+const POLL_MS = 2000;
+
+const fmt = {
+  int: (n) => (n == null ? "—" : Math.round(n).toLocaleString()),
+  ms: (n) => (n == null ? "—" : n >= 10000 ? (n / 1000).toFixed(1) + "s" : Math.round(n) + "ms"),
+  pct: (n) => (n == null ? "—" : (n * 100).toFixed(n < 0.1 ? 2 : 1) + "%"),
+  usd: (n) => {
+    if (n == null) return "—";
+    if (n === 0) return "$0";
+    if (n < 0.01) return "$" + n.toFixed(5);
+    return "$" + n.toFixed(n < 1 ? 4 : 2);
+  },
+  tokens: (n) => (n == null ? "—" : n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n)),
+  ago: (ts) => {
+    const s = Date.now() / 1000 - ts;
+    if (s < 60) return Math.max(0, Math.round(s)) + "s";
+    if (s < 3600) return Math.round(s / 60) + "m";
+    return Math.round(s / 3600) + "h";
+  },
+};
+
+const esc = (s) =>
+  String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+
+async function api(path, options) {
+  const response = await fetch(path, options);
+  if (!response.ok) {
+    let detail = response.statusText;
+    try {
+      const body = await response.json();
+      detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    } catch (_) { /* non-JSON error body */ }
+    throw new Error(detail || ("HTTP " + response.status));
+  }
+  return response.json();
+}
+
+// ---------------------------------------------------------------- tiles
+function renderTiles(stats) {
+  const t = stats.totals;
+  const live = stats.live;
+  const served = t.requests - t.failures;
+  const rate = t.requests ? served / t.requests : null;
+  const rateClass = rate == null ? "" : rate >= 0.99 ? "ok" : rate >= 0.95 ? "warn" : "bad";
+
+  const tiles = [
+    ["requests", fmt.int(t.requests), "", fmt.int(live.served) + " served / " + fmt.int(live.failed) + " failed this boot"],
+    ["success", rate == null ? "—" : fmt.pct(rate), rateClass, fmt.int(t.failures) + " unserved"],
+    ["p50", fmt.ms(t.p50_ms), "", "mean " + fmt.ms(t.mean_ms)],
+    ["p95", fmt.ms(t.p95_ms), "", "p99 " + fmt.ms(t.p99_ms)],
+    ["fail-overs", fmt.int(t.failovers), t.failovers ? "warn" : "", "retries on another provider"],
+    ["spend", fmt.usd(t.cost_usd), "", fmt.tokens(t.tokens) + " tokens"],
+    ["policy", live.policy, "", (stats.policies || []).length + " available"],
+  ];
+
+  $("tiles").innerHTML = tiles
+    .map(
+      ([k, v, cls, sub]) =>
+        '<div class="tile"><div class="k">' + esc(k) + '</div>' +
+        '<div class="v ' + cls + '">' + esc(v) + "</div>" +
+        '<div class="sub">' + esc(sub) + "</div></div>"
+    )
+    .join("");
+}
+
+// ---------------------------------------------------------------- chart
+function renderChart(timeline) {
+  const W = 1000, H = 190, padL = 34, padR = 40, padB = 20, padT = 10;
+  const inner = W - padL - padR, plot = H - padT - padB;
+  const maxReq = Math.max(1, ...timeline.map((b) => b.requests));
+  const maxP95 = Math.max(1, ...timeline.map((b) => b.p95_ms));
+  const barWidth = inner / timeline.length;
+
+  const y = (v, max) => padT + plot - (v / max) * plot;
+  const parts = [];
+
+  // horizontal guides
+  for (let i = 0; i <= 2; i++) {
+    const value = (maxReq / 2) * i;
+    const yy = y(value, maxReq);
+    parts.push('<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yy + '" y2="' + yy +
+      '" stroke="#222734" stroke-width="1"/>');
+    parts.push('<text x="' + (padL - 6) + '" y="' + (yy + 3) + '" text-anchor="end">' + Math.round(value) + "</text>");
+  }
+  parts.push('<text x="' + (W - padR + 6) + '" y="' + (padT + 8) + '" fill="#3ddc97">' + Math.round(maxP95) + "ms</text>");
+
+  timeline.forEach((bucket, index) => {
+    const x = padL + index * barWidth;
+    const w = Math.max(1, barWidth - 2);
+    const ok = bucket.requests - bucket.failures;
+    const okHeight = plot - (y(ok, maxReq) - padT);
+    const failHeight = plot - (y(bucket.failures, maxReq) - padT);
+    if (ok > 0) {
+      parts.push('<rect x="' + x + '" y="' + (y(ok, maxReq) - failHeight) + '" width="' + w +
+        '" height="' + okHeight + '" fill="#6aa6ff" opacity="0.85" rx="1"/>');
+    }
+    if (bucket.failures > 0) {
+      parts.push('<rect x="' + x + '" y="' + y(bucket.failures, maxReq) + '" width="' + w +
+        '" height="' + failHeight + '" fill="#ff6b6b" rx="1"/>');
+    }
+  });
+
+  const points = timeline
+    .map((bucket, index) => (padL + index * barWidth + barWidth / 2) + "," + y(bucket.p95_ms, maxP95))
+    .join(" ");
+  parts.push('<polyline points="' + points + '" fill="none" stroke="#3ddc97" stroke-width="1.6" opacity="0.9"/>');
+
+  const span = timeline.length ? Math.abs(timeline[0].t) : 0;
+  parts.push('<text x="' + padL + '" y="' + (H - 5) + '">-' + Math.round(span) + "s</text>");
+  parts.push('<text x="' + (W - padR) + '" y="' + (H - 5) + '" text-anchor="end">now</text>');
+
+  $("chart").innerHTML =
+    '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" height="190" preserveAspectRatio="none">' +
+    parts.join("") + "</svg>";
+}
+
+// ------------------------------------------------------------- providers
+function renderProviders(stats) {
+  const providers = stats.live.providers;
+  if (!providers.length) {
+    $("providers").innerHTML = '<div class="empty">no providers configured</div>';
+    return;
+  }
+  const rows = providers
+    .map((p) => {
+      const breaker = p.breaker || {};
+      const state = String(breaker.state || "closed");
+      const cooldown = breaker.cooldown_remaining_s;
+      const errorClass = p.error_rate_ewma > 0.2 ? "bad" : p.error_rate_ewma > 0.05 ? "warn" : "";
+      return (
+        "<tr>" +
+        '<td class="pname">' + esc(p.provider) + "<small>" + esc((p.models || []).join(", ")) + "</small></td>" +
+        "<td>" + fmt.int(p.requests) + "</td>" +
+        "<td>" + fmt.int(p.failures) + "</td>" +
+        '<td class="' + errorClass + '">' + fmt.pct(p.error_rate_ewma) + "</td>" +
+        "<td>" + fmt.ms(p.p50_ms) + "</td>" +
+        "<td>" + fmt.ms(p.p95_ms) + "</td>" +
+        "<td>" + fmt.int(p.in_flight) + "</td>" +
+        '<td><span class="state ' + esc(state) + '">' + esc(state.replace("_", " ")) + "</span>" +
+        (state !== "closed" && cooldown ? '<small style="color:var(--ink-faint)"> ' + cooldown + "s</small>" : "") +
+        "</td>" +
+        '<td><button data-reset="' + esc(p.provider) + '" title="close the breaker now">reset</button></td>' +
+        "</tr>"
+      );
+    })
+    .join("");
+
+  $("providers").innerHTML =
+    "<table><thead><tr><th>provider</th><th>reqs</th><th>fail</th><th>err ewma</th>" +
+    "<th>p50</th><th>p95</th><th>in flight</th><th>breaker</th><th></th></tr></thead><tbody>" +
+    rows + "</tbody></table>";
+
+  $("providers").querySelectorAll("[data-reset]").forEach((button) => {
+    button.onclick = async () => {
+      button.disabled = true;
+      try {
+        await api("/admin/breaker/" + encodeURIComponent(button.dataset.reset) + "/reset", { method: "POST" });
+        await refresh();
+      } catch (error) {
+        showError(error);
+      } finally {
+        button.disabled = false;
+      }
+    };
+  });
+}
+
+// --------------------------------------------------------------- ranking
+function renderRanking(stats) {
+  const ranking = stats.live.ranking || [];
+  if (!ranking.length) {
+    $("ranking").innerHTML = '<div class="empty">nothing to rank</div>';
+    return;
+  }
+  $("ranking").innerHTML = ranking
+    .map((entry, index) => {
+      // Only the adaptive policy publishes score terms; the baselines
+      // publish a reason alone, so every term below is optional.
+      const terms = [];
+      if (entry.p50_ms != null) terms.push("p50 <b>" + fmt.ms(entry.p50_ms) + "</b>");
+      if (entry.p95_ms != null) terms.push("p95 <b>" + fmt.ms(entry.p95_ms) + "</b>");
+      if (entry.error_rate != null) terms.push("err <b>" + fmt.pct(entry.error_rate) + "</b>");
+      if (entry.in_flight != null) terms.push("queue <b>" + fmt.int(entry.in_flight) + "</b>");
+      if (entry.cost_term_ms) terms.push("cost <b>" + fmt.ms(entry.cost_term_ms) + "</b>");
+      return (
+        '<div class="rank-row' + (index === 0 ? " leader" : "") + '">' +
+        '<div class="rank-head"><span class="pos">#' + (index + 1) + "</span>" +
+        "<span>" + esc(entry.provider) + "</span>" +
+        '<span class="score">' + (entry.score == null ? "" : fmt.ms(entry.score)) + "</span></div>" +
+        '<div class="rank-why">' + esc(entry.reason || "") +
+        (entry.breaker && entry.breaker !== "closed" ? " &middot; breaker " + esc(entry.breaker) : "") +
+        "</div>" +
+        (terms.length ? '<div class="terms">' + terms.join("") + "</div>" : "") +
+        "</div>"
+      );
+    })
+    .join("");
+}
+
+// ------------------------------------------------------------------ cost
+function renderCost(stats) {
+  const rows = stats.by_provider || [];
+  if (!rows.length) {
+    $("cost").innerHTML = '<div class="empty">no requests in this window</div>';
+    return;
+  }
+  const total = rows.reduce((sum, r) => sum + r.cost_usd, 0);
+  $("cost").innerHTML =
+    "<table><thead><tr><th>provider</th><th>reqs</th><th>fail</th><th>p50</th><th>p95</th>" +
+    "<th>tokens</th><th>cost</th><th>share</th></tr></thead><tbody>" +
+    rows
+      .map(
+        (r) =>
+          "<tr>" +
+          '<td class="pname">' + esc(r.provider) + "</td>" +
+          "<td>" + fmt.int(r.requests) + "</td>" +
+          '<td class="' + (r.failures ? "warn" : "") + '">' + fmt.int(r.failures) + "</td>" +
+          "<td>" + fmt.ms(r.p50_ms) + "</td>" +
+          "<td>" + fmt.ms(r.p95_ms) + "</td>" +
+          "<td>" + fmt.tokens(r.tokens) + "</td>" +
+          "<td>" + fmt.usd(r.cost_usd) + "</td>" +
+          "<td>" + (total ? fmt.pct(r.cost_usd / total) : "—") + "</td>" +
+          "</tr>"
+      )
+      .join("") +
+    "</tbody></table>";
+}
+
+// ------------------------------------------------------------------- log
+function renderLog(requests) {
+  if (!requests.length) {
+    $("log").innerHTML = '<div class="empty">no requests yet</div>';
+    return;
+  }
+  $("log").innerHTML = requests
+    .map((request) => {
+      const chain = (request.attempts || [])
+        .map((attempt) => {
+          if (attempt.skipped) return attempt.provider + " skipped(" + attempt.skipped + ")";
+          if (!attempt.ok) return attempt.provider + " ✗ " + (attempt.error || "error");
+          return attempt.provider + " ✓";
+        })
+        .join(" → ");
+      return (
+        '<div class="row' + (request.ok ? "" : " fail") + '">' +
+        '<span><span class="dot"></span> ' + esc(fmt.ago(request.ts)) + "</span>" +
+        "<span>" + esc(request.provider || "unserved") + "</span>" +
+        '<span class="num">' + fmt.ms(request.latency_ms) + "</span>" +
+        '<span class="num">' + fmt.usd(request.cost_usd) + "</span>" +
+        '<span class="chain">' + esc(request.error || chain) + "</span>" +
+        "</div>"
+      );
+    })
+    .join("");
+}
+
+// --------------------------------------------------------------- plumbing
+let lastPolicies = "";
+
+function renderPolicies(stats) {
+  const available = stats.policies || [];
+  const key = available.join(",") + "|" + stats.live.policy;
+  if (key === lastPolicies) return;
+  lastPolicies = key;
+  $("policy").innerHTML = available
+    .map(
+      (name) =>
+        '<option value="' + esc(name) + '"' + (name === stats.live.policy ? " selected" : "") + ">" +
+        esc(name) + "</option>"
+    )
+    .join("");
+}
+
+function showError(error) {
+  $("error").textContent = error ? " — " + error.message : "";
+}
+
+async function refresh() {
+  const window_ = $("window").value;
+  const query = window_ ? "?window=" + encodeURIComponent(window_) : "";
+  const failuresOnly = $("failures-only").checked;
+  const [stats, requests] = await Promise.all([
+    api("/stats" + query),
+    api("/requests?limit=60" + (failuresOnly ? "&failures_only=true" : "")),
+  ]);
+
+  const mode = $("mode");
+  mode.textContent = stats.demo_mode ? "demo providers" : "live providers";
+  mode.className = "badge " + (stats.demo_mode ? "demo" : "live");
+  $("load").style.display = stats.demo_mode ? "" : "none";
+
+  renderPolicies(stats);
+  renderTiles(stats);
+  renderChart(stats.timeline || []);
+  renderProviders(stats);
+  renderRanking(stats);
+  renderCost(stats);
+  renderLog(requests);
+  $("tick").textContent = new Date().toLocaleTimeString();
+  showError(null);
+}
+
+$("policy").onchange = async (event) => {
+  try {
+    await api("/admin/policy/" + encodeURIComponent(event.target.value), { method: "POST" });
+    lastPolicies = "";
+    await refresh();
+  } catch (error) {
+    showError(error);
+  }
+};
+
+$("window").onchange = () => refresh().catch(showError);
+$("failures-only").onchange = () => refresh().catch(showError);
+
+$("load").onclick = async () => {
+  const button = $("load");
+  button.disabled = true;
+  button.textContent = "sending…";
+  try {
+    const result = await api("/demo/load?requests=25&concurrency=5", { method: "POST" });
+    button.textContent = result.served + " served, " + result.failed + " failed";
+    await refresh();
+    setTimeout(() => { button.textContent = "send 25 requests"; }, 2500);
+  } catch (error) {
+    showError(error);
+    button.textContent = "send 25 requests";
+  } finally {
+    button.disabled = false;
+  }
+};
+
+(async function start() {
+  try {
+    await refresh();
+  } catch (error) {
+    showError(error);
+  }
+  setInterval(() => refresh().catch(showError), POLL_MS);
+})();
+</script>
+</body>
+</html>
