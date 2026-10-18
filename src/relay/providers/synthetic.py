@@ -44,8 +44,14 @@ _TRAILING_DIGITS = re.compile(r"(\d+)$")
 
 
 async def _no_sleep(_seconds: float) -> None:
-    """Simulated time passes for free, so a 10k-request replay is instant."""
-    return None
+    """Simulated time passes for free, so a 10k-request replay is instant.
+
+    It still yields to the event loop: without that, a batch of concurrent
+    requests would each run to completion before the next one started, and the
+    router's view of in-flight work -- the thing the queue-depth term exists
+    for -- would always read zero.
+    """
+    await asyncio.sleep(0)
 
 
 @dataclass(frozen=True)
