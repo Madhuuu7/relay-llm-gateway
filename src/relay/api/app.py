@@ -24,6 +24,7 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
+import logging
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -40,7 +41,13 @@ from ..routing.gateway import Gateway, GatewayConfig, GatewayError
 from ..routing.policies import POLICIES, Adaptive, AdaptiveConfig, build_policy
 from ..store import RequestStore
 
+log = logging.getLogger("relay.api")
+
 WEB_ROOT = Path(__file__).resolve().parents[3] / "web"
+#: The built console. Vite emits here; a checkout that has never run the
+#: build has no dist, and the mount below is skipped rather than serving the
+#: raw sources, which would be a page of TypeScript the browser cannot run.
+CONSOLE_ROOT = WEB_ROOT / "dist"
 
 
 # ----------------------------------------------------------------------
@@ -399,8 +406,15 @@ def create_app() -> FastAPI:
         await asyncio.gather(*(one(i) for i in range(requests)))
         return {"generated": requests, "served": served, "failed": failed}
 
-    if WEB_ROOT.is_dir():
-        app.mount("/", StaticFiles(directory=WEB_ROOT, html=True), name="web")
+    # Mounted last and at the root, so every API route above wins and only
+    # unmatched paths fall through to the console.
+    if CONSOLE_ROOT.is_dir():
+        app.mount("/", StaticFiles(directory=CONSOLE_ROOT, html=True), name="console")
+    elif WEB_ROOT.is_dir():
+        log.warning(
+            "web/dist is missing: run `npm --prefix web install && "
+            "npm --prefix web run build`. Serving no console."
+        )
 
     return app
 
