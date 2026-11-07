@@ -155,6 +155,38 @@ def test_openapi_is_served(client: TestClient) -> None:
 
 
 def test_dashboard_is_served_at_the_root(client: TestClient) -> None:
+    """The console is a built bundle, and the build is not committed.
+
+    `web/dist` is gitignored, so a fresh checkout -- CI included -- has no
+    console until `npm run build` has run. Asserting 200 unconditionally
+    made this pass on a developer machine and fail on CI for a reason that
+    had nothing to do with the gateway. The build itself is verified by the
+    `console` job, which type-checks and builds it; what is worth asserting
+    here is the gateway's half of the contract: serve the bundle when it
+    exists, and do not pretend to when it does not.
+    """
+    from relay.api.app import CONSOLE_ROOT
+
     response = client.get("/")
+    if not CONSOLE_ROOT.is_dir():
+        pytest.skip(
+            "console not built; run `npm --prefix web install && "
+            "npm --prefix web run build`"
+        )
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
+
+
+def test_the_api_still_answers_when_the_console_is_not_built() -> None:
+    """An unbuilt console must not take the gateway down with it.
+
+    The console mount sits at the root and is added last. If a missing
+    `dist` were allowed to raise at startup, a deploy that skipped the npm
+    step would return 502 for `/v1/chat/completions` as well -- the console
+    is the least important thing this process does.
+    """
+    from relay.api.app import create_app
+
+    with TestClient(create_app()) as fresh:
+        assert fresh.get("/health").status_code == 200
+        assert fresh.get("/stats").status_code == 200
