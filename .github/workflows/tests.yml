@@ -1,0 +1,53 @@
+# The suite, on every push.
+#
+# relay has no external dependencies in test: the providers it routes
+# between are simulated, and the replay benchmark derives latency and
+# failure from a hash of (provider, position) so a run is reproducible on
+# any machine. That is what makes the routing comparison meaningful, and it
+# is also why CI needs no API key and no network.
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+
+  benchmark:
+    # The headline number in the README is 71.8% off p95. It is reproducible
+    # by construction, so CI reproduces it rather than trusting a figure
+    # committed months ago.
+    #
+    # The arguments matter and are not the script's defaults: the README's
+    # table is 4,000 requests at concurrency 16, and the bare defaults
+    # (2,000 at concurrency 1) are a different experiment giving a different
+    # number. Running the wrong one here would "verify" a figure the README
+    # does not claim.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: python scripts/replay.py --requests 4000 --concurrency 16 --markdown
