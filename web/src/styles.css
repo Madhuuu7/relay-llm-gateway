@@ -755,3 +755,49 @@ input[type="range"]::-moz-range-thumb {
 .tiles .v {
   font-variant-numeric: tabular-nums;
 }
+
+/* -- the benchmark --------------------------------------------------- */
+
+.headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 24px;
+  padding: 16px 0 20px;
+  border-top: 1px solid var(--rule);
+  margin-bottom: 18px;
+}
+
+.headline .hbig {
+  font-family: var(--mono);
+  font-size: clamp(30px, 5vw, 46px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--p0);
+}
+
+.headline .hsays {
+  font-size: 14.5px;
+  color: var(--ink-soft);
+  max-width: 58ch;
+}
+
+/* A bar behind the policy name, so the table is also a chart and the
+ * reader does not have to compare four numbers in their head. */
+.p95bar {
+  height: 3px;
+  background: var(--rule-soft);
+  margin-bottom: 6px;
+  max-width: 280px;
+}
+
+.p95bar span {
+  display: block;
+  height: 100%;
+  background: var(--ink-faint);
+}
+
+.p95bar span.win {
+  background: var(--p0);
+}

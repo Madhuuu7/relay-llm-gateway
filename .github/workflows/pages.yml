@@ -1,0 +1,80 @@
+# Publish the console as a static page.
+#
+# Served by the gateway the console drives a live process. Published here
+# there is no process, so it reads recordings from web/public/demo and says
+# so on the page.
+#
+# The two halves are not equally honest and the page distinguishes them.
+# The replay benchmark is reproducible by construction -- provider latency
+# and failure come from a hash of (provider, position), so the four
+# policies face identical upstreams and the same numbers come out on any
+# machine. That is a result, and it is regenerated here from the pushed
+# commit rather than trusted from the committed file. The live panels are a
+# frozen sample of one run's simulated traffic, which the banner says, and
+# the controls that would need a process are hidden.
+
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+
+      - name: Re-run the benchmark from this commit
+        # The arguments are the README's, not the script's defaults: the
+        # published table has to be the one the README quotes.
+        run: |
+          python scripts/replay.py --requests 4000 --concurrency 16 \
+            --json web/public/demo/replay.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm test
+        working-directory: web
+
+      - name: Build
+        # A project site lives at /<repo>/, so assets and every fetch are
+        # relative.
+        run: npm run build -- --base=./
+        working-directory: web
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

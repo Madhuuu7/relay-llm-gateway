@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import statistics
 import sys
 from dataclasses import dataclass
@@ -214,6 +215,44 @@ async def main_async(args: argparse.Namespace) -> int:
 
     baseline = outcomes[0]
     adaptive = outcomes[-1]
+
+    if args.json:
+        # The console shows this table, live or published, rather than
+        # quoting the headline in prose that nothing checks. Written from
+        # the same run that printed it, so the page and the terminal
+        # cannot disagree.
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(
+            json.dumps(
+                {
+                    "requests": args.requests,
+                    "concurrency": args.concurrency,
+                    "seed": args.seed,
+                    "baseline": baseline.policy,
+                    "policies": [
+                        {
+                            "policy": o.policy,
+                            "p50_ms": o.percentile(0.50),
+                            "p95_ms": o.percentile(0.95),
+                            "p99_ms": o.percentile(0.99),
+                            "served": o.served,
+                            "failures": o.failures,
+                            "success_rate": o.success_rate,
+                            "failovers": o.failovers,
+                            "cost_usd": o.cost_usd,
+                            "breaker_trips": o.breaker_trips,
+                            "skipped_by_breaker": o.skipped_by_breaker,
+                            "per_provider": o.per_provider,
+                        }
+                        for o in outcomes
+                    ],
+                },
+                indent=1,
+            ),
+            encoding="utf-8",
+        )
+        print(f"\nwrote {args.json}")
+
     print()
     print("where each policy sent the traffic:")
     for outcome in outcomes:
@@ -292,6 +331,11 @@ def main() -> int:
     parser.add_argument("--epsilon", type=float, default=0.05)
     parser.add_argument("--sweep", action="store_true", help="sweep tail_weight")
     parser.add_argument("--markdown", action="store_true")
+    parser.add_argument(
+        "--json",
+        type=Path,
+        help="write the table here, for the console to display",
+    )
     args = parser.parse_args()
     return asyncio.run(main_async(args))
 

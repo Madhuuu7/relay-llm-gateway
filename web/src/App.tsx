@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Benchmark } from "./components/Benchmark";
 import { Decision } from "./components/Decision";
 import { Flow } from "./components/Flow";
 import { Tape } from "./components/Tape";
 import { useCountUp } from "./lib/animate";
-import { getJSON, usePoll, type RequestRow, type Stats } from "./lib/api";
+import {
+  getJSON,
+  usePoll,
+  type Benchmark as BenchmarkData,
+  type RequestRow,
+  type Stats,
+} from "./lib/api";
+import { detect, read, type Mode } from "./lib/source";
 
 function ms(v: number | null | undefined): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "—";
@@ -65,9 +73,26 @@ export default function App() {
   const [streaming, setStreaming] = useState(false);
   const [tail, setTail] = useState(0.25);
   const [penalty, setPenalty] = useState(3);
+  const [mode, setMode] = useState<Mode | null>(null);
+  const [bench, setBench] = useState<BenchmarkData | null>(null);
 
-  const stats = usePoll<Stats>("/stats", 1500);
-  const log = usePoll<RequestRow[]>("/requests?limit=140", 1500);
+  useEffect(() => {
+    void detect().then(setMode);
+    // The benchmark is a file either way: the gateway does not re-run a
+    // 4,000-request replay on request, and it would not be the same
+    // measurement if it did.
+    read<BenchmarkData>("demo/replay.json", "replay.json")
+      .then(setBench)
+      .catch(() => undefined);
+  }, []);
+
+  const live = mode !== "recorded";
+  const stats = usePoll<Stats>("stats", live ? 1500 : 0, "stats.json");
+  const log = usePoll<RequestRow[]>(
+    "requests?limit=140",
+    live ? 1500 : 0,
+    "requests.json",
+  );
   const s = stats.value;
   const rows = log.value ?? [];
   const policy = s?.live.policy ?? "adaptive";
@@ -161,6 +186,7 @@ export default function App() {
           )}
           {s && (
             <select
+              disabled={busy || mode === "recorded"}
               value={policy}
               onChange={(e) =>
                 void act(
@@ -171,7 +197,6 @@ export default function App() {
                   "could not switch policy",
                 )
               }
-              disabled={busy}
               aria-label="Routing policy"
             >
               {s.policies.map((p) => (
@@ -181,7 +206,7 @@ export default function App() {
               ))}
             </select>
           )}
-          {s?.demo_mode && (
+          {s?.demo_mode && mode !== "recorded" && (
             <button
               className={`go${streaming ? " streaming" : ""}`}
               onClick={() => setStreaming(!streaming)}
@@ -201,6 +226,32 @@ export default function App() {
         </p>
       )}
 
+      {mode === "recorded" && (
+        <p className="state" style={{ marginBottom: 22 }}>
+          <b>No gateway behind this page.</b> The comparison below is
+          reproducible by construction and is the real result — the four
+          policies are replayed against identical provider behaviour, so
+          the same numbers come out anywhere. The live panels under it are
+          a frozen sample of one run's traffic, and the controls that would
+          need a process are hidden rather than left to fail. Run{" "}
+          <code>uvicorn relay.api.app:app --app-dir src</code> for the
+          working one.
+        </p>
+      )}
+
+      {bench && (
+        <section>
+          <h2>The controlled comparison</h2>
+          <p className="sub">
+            One trace of {bench.requests.toLocaleString()} requests replayed
+            through all four policies, with provider latency and failure
+            held byte-identical across the runs — so the only thing that
+            differs is where each request was sent.
+          </p>
+          <Benchmark data={bench} />
+        </section>
+      )}
+
       <section>
         <h2>Where the traffic went</h2>
         <p className="sub">
@@ -214,7 +265,7 @@ export default function App() {
             providers={s.live.providers}
             policy={policy}
             totalRequests={s.live.served}
-            onToggleProvider={(provider, drain) =>
+            onToggleProvider={mode === "recorded" ? undefined : (provider, drain) =>
               void act(
                 () =>
                   getJSON(
@@ -240,7 +291,7 @@ export default function App() {
         </p>
         {s ? <Decision ranking={s.live.ranking} policy={policy} /> : null}
 
-        {policy === "adaptive" && (
+        {policy === "adaptive" && mode !== "recorded" && (
           <div className="tuning">
             <label>
               tail weight

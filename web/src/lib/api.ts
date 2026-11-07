@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { read } from "./source";
 import type { Ranked } from "./score";
 
 export type Breaker = {
@@ -101,6 +102,29 @@ export type RequestRow = {
   attempts: Attempt[];
 };
 
+export type PolicyResult = {
+  policy: string;
+  p50_ms: number;
+  p95_ms: number;
+  p99_ms: number;
+  served: number;
+  failures: number;
+  success_rate: number;
+  failovers: number;
+  cost_usd: number;
+  breaker_trips: number;
+  skipped_by_breaker: number;
+  per_provider: Record<string, number>;
+};
+
+export type Benchmark = {
+  requests: number;
+  concurrency: number;
+  seed: number;
+  baseline: string;
+  policies: PolicyResult[];
+};
+
 export async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -113,7 +137,14 @@ export async function getJSON<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function usePoll<T>(path: string, intervalMs: number) {
+/**
+ * Poll an endpoint, or read a recording once.
+ *
+ * An `intervalMs` of 0 means read once and stop, which is what the
+ * published page wants: there is nothing behind it to poll, and a timer
+ * hammering a static file would burn battery redrawing the same numbers.
+ */
+export function usePoll<T>(path: string, intervalMs: number, recorded?: string) {
   const [value, setValue] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
@@ -122,17 +153,20 @@ export function usePoll<T>(path: string, intervalMs: number) {
     if (inFlight.current) return;
     inFlight.current = true;
     try {
-      setValue(await getJSON<T>(path));
+      setValue(
+        recorded ? await read<T>(path, recorded) : await getJSON<T>(path),
+      );
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "the gateway did not answer");
     } finally {
       inFlight.current = false;
     }
-  }, [path]);
+  }, [path, recorded]);
 
   useEffect(() => {
     void tick();
+    if (intervalMs <= 0) return;
     const id = setInterval(() => void tick(), intervalMs);
     return () => clearInterval(id);
   }, [tick, intervalMs]);

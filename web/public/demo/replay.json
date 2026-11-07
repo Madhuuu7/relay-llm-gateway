@@ -1,0 +1,80 @@
+{
+ "requests": 4000,
+ "concurrency": 16,
+ "seed": 11,
+ "baseline": "static",
+ "policies": [
+  {
+   "policy": "static",
+   "p50_ms": 280.2032785811686,
+   "p95_ms": 4639.776379130281,
+   "p99_ms": 4917.059678666238,
+   "served": 3999,
+   "failures": 1,
+   "success_rate": 0.99975,
+   "failovers": 404,
+   "cost_usd": 3.3953980000000663,
+   "breaker_trips": 209,
+   "skipped_by_breaker": 593,
+   "per_provider": {
+    "sim-fast": 3003,
+    "sim-balanced": 995,
+    "sim-cheap": 1
+   }
+  },
+  {
+   "policy": "round_robin",
+   "p50_ms": 617.1171624162051,
+   "p95_ms": 4776.4365638689,
+   "p99_ms": 5521.823267712398,
+   "served": 3999,
+   "failures": 1,
+   "success_rate": 0.99975,
+   "failovers": 372,
+   "cost_usd": 3.272520000000031,
+   "breaker_trips": 103,
+   "skipped_by_breaker": 201,
+   "per_provider": {
+    "sim-balanced": 1704,
+    "sim-cheap": 1160,
+    "sim-fast": 1135
+   }
+  },
+  {
+   "policy": "random",
+   "p50_ms": 609.0184552837641,
+   "p95_ms": 4663.445315470437,
+   "p99_ms": 5855.404809651661,
+   "served": 3999,
+   "failures": 1,
+   "success_rate": 0.99975,
+   "failovers": 344,
+   "cost_usd": 3.1122840000000465,
+   "breaker_trips": 84,
+   "skipped_by_breaker": 189,
+   "per_provider": {
+    "sim-fast": 1056,
+    "sim-cheap": 1338,
+    "sim-balanced": 1605
+   }
+  },
+  {
+   "policy": "adaptive",
+   "p50_ms": 295.56708793447507,
+   "p95_ms": 1308.105766735717,
+   "p99_ms": 5167.902107998231,
+   "served": 3999,
+   "failures": 1,
+   "success_rate": 0.99975,
+   "failovers": 271,
+   "cost_usd": 3.2098540000000577,
+   "breaker_trips": 40,
+   "skipped_by_breaker": 31,
+   "per_provider": {
+    "sim-fast": 2689,
+    "sim-cheap": 333,
+    "sim-balanced": 977
+   }
+  }
+ ]
+}
