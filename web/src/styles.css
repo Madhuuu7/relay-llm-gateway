@@ -33,25 +33,25 @@
 }
 
 :root {
-  --bg: #0f1218;
-  --panel: #151a22;
-  --rule: #242c38;
-  --rule-soft: #1c232c;
-  --ink: #e4e9f0;
-  --ink-soft: #98a3b4;
-  --ink-faint: #6a7484;
+  --bg: #080b11;
+  --panel: #111823;
+  --rule: #2b3646;
+  --rule-soft: #1a2230;
+  --ink: #f2f6fb;
+  --ink-soft: #a9b6c9;
+  --ink-faint: #74839a;
 
   /* One hue per provider, in the order the gateway lists them. Chosen to
    * stay distinguishable under the common forms of colour blindness: a
    * blue, a warm yellow and a magenta separate on both axes. */
-  --p0: #4aa3df;
-  --p1: #e8a33d;
-  --p2: #c86fc9;
-  --p3: #58c0a8;
+  --p0: #2ab7ff;
+  --p1: #ffb020;
+  --p2: #e46ae4;
+  --p3: #2fe0b0;
 
-  --down: #ff5470;
-  --warn: #e8a33d;
-  --ok: #58c0a8;
+  --down: #ff3d63;
+  --warn: #ffb020;
+  --ok: #2fe0b0;
 
   --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
   --sans: "Space Grotesk", system-ui, -apple-system, sans-serif;
@@ -70,11 +70,11 @@
     --ink: #121720;
     --ink-soft: #4d5867;
     --ink-faint: #7b8696;
-    --p0: #1f72a8;
-    --p1: #a8700f;
-    --p2: #96379a;
-    --p3: #1d8a72;
-    --down: #c8203f;
+    --p0: #0a6ea8;
+    --p1: #9a6300;
+    --p2: #8e2192;
+    --p3: #0c7a62;
+    --down: #c20033;
   }
 }
 
@@ -86,11 +86,11 @@
   --ink: #121720;
   --ink-soft: #4d5867;
   --ink-faint: #7b8696;
-  --p0: #1f72a8;
-  --p1: #a8700f;
-  --p2: #96379a;
-  --p3: #1d8a72;
-  --down: #c8203f;
+  --p0: #0a6ea8;
+  --p1: #9a6300;
+  --p2: #8e2192;
+  --p3: #0c7a62;
+  --down: #c20033;
 }
 
 * {
@@ -600,4 +600,158 @@ svg.flow text.brk-open {
 
 svg.flow text.brk-half_open {
   fill: var(--warn);
+}
+
+/* -- motion ----------------------------------------------------------
+ *
+ * The console polls every two seconds and used to repaint silently, which
+ * made a live system look like a screenshot. Everything that moves here is
+ * answering a change in the data: a ribbon that thickens because traffic
+ * shifted, a figure that counts to its new value, a tick arriving on the
+ * tape. Nothing loops, nothing animates on load for decoration, and all of
+ * it is off under prefers-reduced-motion.
+ */
+
+svg.flow path {
+  transition: stroke-width 700ms cubic-bezier(0.22, 0.9, 0.3, 1),
+    stroke-opacity 400ms ease, stroke 400ms ease;
+}
+
+svg.flow .gate {
+  transition: stroke 300ms ease;
+}
+
+svg.flow .node-hit {
+  cursor: pointer;
+  fill: transparent;
+}
+
+svg.flow .node-hit:hover + .node-ring,
+svg.flow .node-hit:focus-visible + .node-ring {
+  opacity: 1;
+}
+
+svg.flow .node-ring {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+svg.flow .drainhint {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  fill: var(--ink-faint);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+svg.flow .node-hit:hover ~ .drainhint,
+svg.flow .node-hit:focus-visible ~ .drainhint {
+  opacity: 1;
+}
+
+@keyframes arrive {
+  from {
+    transform: scaleY(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.tape .tick .body {
+  transform-origin: bottom;
+}
+
+.tape .tick.fresh .body {
+  animation: arrive 360ms cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+
+@keyframes livepulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.livedot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  display: inline-block;
+  animation: livepulse 1.6s ease-in-out infinite;
+}
+
+/* -- controls -------------------------------------------------------- */
+
+button.go.streaming {
+  background: var(--down);
+  border-color: var(--down);
+}
+
+.tuning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 30px;
+  align-items: center;
+  padding: 14px 0 0;
+}
+
+.tuning label {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.tuning .val {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+  min-width: 3.4ch;
+  text-align: right;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 142px;
+  height: 3px;
+  background: var(--rule);
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--p0);
+  cursor: pointer;
+  border: 0;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--p0);
+  cursor: pointer;
+  border: 0;
+  border-radius: 0;
+}
+
+.tiles .v {
+  font-variant-numeric: tabular-nums;
 }

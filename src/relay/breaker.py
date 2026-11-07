@@ -169,6 +169,30 @@ class CircuitBreaker:
         """Force closed. For operator intervention and for tests."""
         self._close()
 
+    def drain(self) -> None:
+        """Force open, as an operator would to take a provider out of
+        rotation deliberately.
+
+        Not the same thing as tripping. A trip is the breaker concluding
+        from failures that a provider is unhealthy, and it counts toward
+        ``trips`` because that number is a record of what the provider did.
+        A drain is a human deciding to stop sending traffic -- for a
+        migration, a price change, a provider's own maintenance window --
+        and inflating the trip count with it would make the health record
+        a record of operator actions instead.
+
+        It respects the cooldown like any other open state, so a drained
+        provider comes back by itself through HALF_OPEN rather than needing
+        a second intervention to undo the first.
+        """
+        if self._state is BreakerState.OPEN:
+            return
+        self._state = BreakerState.OPEN
+        self._opened_at = self.clock()
+        self._probe_successes = 0
+        self._probes_in_flight = 0
+        self._cooldown = self.config.cooldown_seconds
+
     # ------------------------------------------------------------------
     def _open(self, *, backoff: bool) -> None:
         self._state = BreakerState.OPEN

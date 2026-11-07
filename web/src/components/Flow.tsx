@@ -33,10 +33,13 @@ export function Flow({
   providers,
   policy,
   totalRequests,
+  onToggleProvider,
 }: {
   providers: ProviderLive[];
   policy: string;
   totalRequests: number;
+  /** Drain a healthy provider, or restore a drained one. */
+  onToggleProvider?: (provider: string, open: boolean) => void;
 }) {
   if (!providers.length) {
     return <p className="state">No providers are registered.</p>;
@@ -118,6 +121,41 @@ export function Flow({
                 p50 {ms(p.p50_ms)} · p95 {ms(p.p95_ms)}
                 {p.failures > 0 ? ` · ${p.failures} failed` : ""}
               </text>
+              {onToggleProvider && (
+                <>
+                  <rect
+                    className="node-hit"
+                    x={NODE_X - 8}
+                    y={y - 24}
+                    width={330}
+                    height={48}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${
+                      state === "open" ? "Restore" : "Drain"
+                    } ${p.provider}`}
+                    onClick={() => onToggleProvider(p.provider, state !== "open")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onToggleProvider(p.provider, state !== "open");
+                      }
+                    }}
+                  />
+                  <rect
+                    className="node-ring"
+                    x={NODE_X - 8}
+                    y={y - 24}
+                    width={330}
+                    height={48}
+                  />
+                  <text x={NODE_X + 18} y={y + 38} className="drainhint">
+                    {state === "open"
+                      ? "click to put back in rotation"
+                      : "click to take out of rotation"}
+                  </text>
+                </>
+              )}
               <g transform={`translate(${W - 118} ${y - 9})`}>
                 <rect
                   width={108}

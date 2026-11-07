@@ -123,9 +123,63 @@ def test_request_log(client: TestClient) -> None:
 
 def test_policy_can_be_swapped_at_runtime(client: TestClient) -> None:
     """Why the policy is a strategy object and not a branch in the gateway."""
-    assert client.post("/admin/policy/round_robin").json() == {"policy": "round_robin"}
+    body = client.post("/admin/policy/round_robin").json()
+    assert body["policy"] == "round_robin"
+    # A policy that does not score reports no weights rather than the
+    # adaptive defaults, which would imply it was using them.
+    assert body["tail_weight"] is None
+    assert body["error_penalty"] is None
     assert completion(client).json()["x_relay"]["policy"] == "round_robin"
     assert client.post("/admin/policy/vibes").status_code == 404
+
+
+def test_the_adaptive_weights_can_be_retuned_without_a_restart(
+    client: TestClient,
+) -> None:
+    """The two numbers that decide everything should not be compiled in.
+
+    `tail_weight` sets how much of the latency term is the tail rather than
+    the median, and `error_penalty` how hard a flaky provider is punished.
+    Choosing them is the whole tuning surface of the policy, so they are
+    adjustable live -- which is also what makes the console able to show
+    the ranking reorder as you move them.
+    """
+    body = client.post(
+        "/admin/policy/adaptive?tail_weight=0.8&error_penalty=10"
+    ).json()
+    assert body["policy"] == "adaptive"
+    assert body["tail_weight"] == 0.8
+    assert body["error_penalty"] == 10.0
+
+    # And the bounds are enforced: a tail weight above 1 is not a sharper
+    # setting, it is a weighted average that is no longer an average.
+    assert client.post("/admin/policy/adaptive?tail_weight=1.5").status_code == 422
+    assert client.post("/admin/policy/adaptive?error_penalty=-1").status_code == 422
+
+
+def test_a_provider_can_be_drained_on_purpose(client: TestClient) -> None:
+    """Taking a healthy provider out of rotation is an operator action, not
+    a verdict on the provider.
+
+    It opens the breaker so traffic stops, but it must not count as a trip:
+    `trips` is a record of what the provider did, and inflating it with
+    operator decisions turns the health history into an audit log of
+    humans.
+    """
+    before = client.post("/admin/breaker/sim-fast/reset").json()
+    drained = client.post("/admin/breaker/sim-fast/drain").json()
+    assert drained["provider"] == "sim-fast"
+    assert drained["state"] == "open"
+    assert drained["trips"] == before["trips"]
+    assert drained["cooldown_remaining_s"] > 0
+
+    # Draining twice is not a second drain -- it must not restart the
+    # cooldown, or a polling console would hold a provider open forever.
+    again = client.post("/admin/breaker/sim-fast/drain").json()
+    assert again["cooldown_remaining_s"] <= drained["cooldown_remaining_s"]
+
+    assert client.post("/admin/breaker/sim-fast/reset").json()["state"] == "closed"
+    assert client.post("/admin/breaker/nope/drain").status_code == 404
 
 
 def test_breaker_can_be_reset_by_an_operator(client: TestClient) -> None:

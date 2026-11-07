@@ -343,7 +343,22 @@ def create_app() -> FastAPI:
         )
 
     @app.post("/admin/policy/{name}")
-    def set_policy(name: str, runtime: RuntimeDep) -> dict[str, str]:
+    def set_policy(
+        name: str,
+        runtime: RuntimeDep,
+        tail_weight: float = Query(
+            AdaptiveConfig.tail_weight,
+            ge=0.0,
+            le=1.0,
+            description="How much of the latency term is p95 rather than p50.",
+        ),
+        error_penalty: float = Query(
+            3.0,
+            ge=0.0,
+            le=20.0,
+            description="Multiplier on the error term, charged against latency.",
+        ),
+    ) -> dict[str, object]:
         """Swap the routing policy at runtime.
 
         Useful for a live A/B on the dashboard, and the reason the policy is a
@@ -351,13 +366,42 @@ def create_app() -> FastAPI:
         """
         try:
             runtime.gateway.policy = (
-                Adaptive(config=AdaptiveConfig(), prices=runtime.prices)
+                Adaptive(
+                    config=AdaptiveConfig(
+                        tail_weight=tail_weight, error_penalty=error_penalty
+                    ),
+                    prices=runtime.prices,
+                )
                 if name == "adaptive"
                 else build_policy(name)
             )
         except ValueError as error:
             raise HTTPException(404, str(error)) from None
-        return {"policy": runtime.gateway.policy.name}
+        tuned = getattr(runtime.gateway.policy, "config", None)
+        return {
+            "policy": runtime.gateway.policy.name,
+            "tail_weight": getattr(tuned, "tail_weight", None),
+            "error_penalty": getattr(tuned, "error_penalty", None),
+        }
+
+    @app.post("/admin/breaker/{provider}/drain")
+    def drain_breaker(provider: str, runtime: RuntimeDep) -> dict[str, object]:
+        """Take a provider out of rotation on purpose.
+
+        The operator action a gateway actually needs and a fallback list
+        cannot express: a provider is fine, and you want it to stop
+        receiving traffic anyway -- a price change, a migration, their
+        maintenance window. It does not count as a trip, because `trips` is
+        a record of what the provider did rather than of what an operator
+        decided, and it expires through the normal cooldown so nobody has
+        to remember to undo it.
+        """
+        try:
+            candidate = runtime.gateway.candidate(provider)
+        except KeyError:
+            raise HTTPException(404, f"unknown provider: {provider}") from None
+        candidate.breaker.drain()
+        return candidate.breaker.snapshot()
 
     @app.post("/admin/breaker/{provider}/reset")
     def reset_breaker(provider: str, runtime: RuntimeDep) -> dict[str, object]:

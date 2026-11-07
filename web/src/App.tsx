@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Decision } from "./components/Decision";
 import { Flow } from "./components/Flow";
 import { Tape } from "./components/Tape";
+import { useCountUp } from "./lib/animate";
 import { getJSON, usePoll, type RequestRow, type Stats } from "./lib/api";
-import { providerIndex } from "./lib/score";
 
 function ms(v: number | null | undefined): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "—";
@@ -14,72 +14,116 @@ function usd(v: number): string {
   return v >= 0.01 ? `$${v.toFixed(3)}` : `$${v.toFixed(5)}`;
 }
 
+/** A tile whose number counts to its new value, so a change between two
+ *  polls is visible rather than being a silent repaint. */
+function Tile({
+  value,
+  label,
+  render,
+}: {
+  value: number;
+  label: string;
+  render: (v: number) => string;
+}) {
+  const shown = useCountUp(value);
+  return (
+    <div>
+      <span className="v">{render(shown)}</span>
+      <span className="k">{label}</span>
+    </div>
+  );
+}
+
 function useTheme() {
-  const [theme, setTheme] = useState<"dark" | "light" | null>(() => {
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
     try {
       const v = localStorage.getItem("relay-theme");
-      return v === "dark" || v === "light" ? v : null;
+      if (v === "dark" || v === "light") return v;
     } catch {
-      return null;
+      /* private window */
     }
+    return typeof window !== "undefined" &&
+      window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark";
   });
-  const prefersLight =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-color-scheme: light)").matches;
-  const effective = theme ?? (prefersLight ? "light" : "dark");
-  const toggle = () => {
-    const next = effective === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
     try {
-      localStorage.setItem("relay-theme", next);
+      localStorage.setItem("relay-theme", theme);
     } catch {
-      /* private window: the page still works, it just will not remember */
+      /* the page still works, it just will not remember */
     }
-  };
-  return [effective, toggle] as const;
+  }, [theme]);
+  return [theme, () => setTheme(theme === "dark" ? "light" : "dark")] as const;
 }
 
 export default function App() {
   const [theme, toggleTheme] = useTheme();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const [tail, setTail] = useState(0.25);
+  const [penalty, setPenalty] = useState(3);
 
-  const stats = usePoll<Stats>("/stats", 2000);
-  const log = usePoll<RequestRow[]>("/requests?limit=120", 2000);
-
+  const stats = usePoll<Stats>("/stats", 1500);
+  const log = usePoll<RequestRow[]>("/requests?limit=140", 1500);
   const s = stats.value;
   const rows = log.value ?? [];
-  const names = useMemo(
-    () => (s ? s.live.ranking.map((r) => r.provider) : []),
-    [s],
+  const policy = s?.live.policy ?? "adaptive";
+
+  const send = useCallback(
+    async (count: number) => {
+      await getJSON(`/demo/load?requests=${count}&concurrency=8`, {
+        method: "POST",
+      });
+      await Promise.all([stats.refresh(), log.refresh()]);
+    },
+    [stats, log],
   );
 
-  async function sendTraffic() {
+  // Streaming keeps traffic flowing so the page is genuinely live rather
+  // than a still picture of the last manual burst. The ref guard stops a
+  // slow burst from overlapping the next one and piling up.
+  const sending = useRef(false);
+  useEffect(() => {
+    if (!streaming) return;
+    let cancelled = false;
+    const id = setInterval(() => {
+      if (sending.current || cancelled) return;
+      sending.current = true;
+      void send(6)
+        .catch(() => setStreaming(false))
+        .finally(() => {
+          sending.current = false;
+        });
+    }, 1800);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [streaming, send]);
+
+  async function act(what: () => Promise<unknown>, failure: string) {
     setBusy(true);
     setNote(null);
     try {
-      await getJSON("/demo/load?requests=40&concurrency=8", { method: "POST" });
+      await what();
       await Promise.all([stats.refresh(), log.refresh()]);
     } catch (e) {
-      setNote(e instanceof Error ? e.message : "could not generate traffic");
+      setNote(e instanceof Error ? e.message : failure);
     } finally {
       setBusy(false);
     }
   }
 
-  async function setPolicy(name: string) {
-    setBusy(true);
-    setNote(null);
-    try {
-      await getJSON(`/admin/policy/${name}`, { method: "POST" });
-      await stats.refresh();
-    } catch (e) {
-      setNote(e instanceof Error ? e.message : "could not switch policy");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const retune = useCallback(
+    (t: number, p: number) =>
+      getJSON(`/admin/policy/adaptive?tail_weight=${t}&error_penalty=${p}`, {
+        method: "POST",
+      }).then(() => stats.refresh()),
+    [stats],
+  );
 
   if (stats.error && !s) {
     return (
@@ -91,10 +135,7 @@ export default function App() {
           <p>The gateway is not answering: {stats.error}</p>
           <p>
             Start it with{" "}
-            <code>
-              uvicorn relay.api.app:app --app-dir src --reload
-            </code>
-            .
+            <code>uvicorn relay.api.app:app --app-dir src --reload</code>.
           </p>
         </div>
       </div>
@@ -110,10 +151,26 @@ export default function App() {
           and queue depth — and shows the arithmetic behind every choice.
         </p>
         <div className="controls">
+          {streaming && (
+            <span
+              className="fig"
+              style={{ fontSize: 12, color: "var(--ink-soft)" }}
+            >
+              <i className="livedot" /> live
+            </span>
+          )}
           {s && (
             <select
-              value={s.live.policy}
-              onChange={(e) => void setPolicy(e.target.value)}
+              value={policy}
+              onChange={(e) =>
+                void act(
+                  () =>
+                    getJSON(`/admin/policy/${e.target.value}`, {
+                      method: "POST",
+                    }),
+                  "could not switch policy",
+                )
+              }
               disabled={busy}
               aria-label="Routing policy"
             >
@@ -125,16 +182,21 @@ export default function App() {
             </select>
           )}
           {s?.demo_mode && (
-            <button className="go" onClick={() => void sendTraffic()} disabled={busy}>
-              {busy ? "sending…" : "Send 40 requests"}
+            <button
+              className={`go${streaming ? " streaming" : ""}`}
+              onClick={() => setStreaming(!streaming)}
+            >
+              {streaming ? "Stop traffic" : "Start traffic"}
             </button>
           )}
-          <button onClick={toggleTheme}>{theme === "dark" ? "Light" : "Dark"}</button>
+          <button onClick={toggleTheme}>
+            {theme === "dark" ? "Light" : "Dark"}
+          </button>
         </div>
       </header>
 
       {note && (
-        <p className="state err" style={{ marginBottom: 22 }}>
+        <p className="state err" style={{ marginBottom: 20 }}>
           {note}
         </p>
       )}
@@ -143,14 +205,25 @@ export default function App() {
         <h2>Where the traffic went</h2>
         <p className="sub">
           Ribbon thickness is each provider's share of the requests served.
-          Change the policy above and watch it rebalance — that shift is the
-          whole claim of the project, and no average shows it.
+          Change the policy, or click a provider to take it out of rotation,
+          and watch the ribbons rebalance — that shift is the whole claim of
+          the project, and no average shows it.
         </p>
         {s ? (
           <Flow
             providers={s.live.providers}
-            policy={s.live.policy}
+            policy={policy}
             totalRequests={s.live.served}
+            onToggleProvider={(provider, drain) =>
+              void act(
+                () =>
+                  getJSON(
+                    `/admin/breaker/${provider}/${drain ? "drain" : "reset"}`,
+                    { method: "POST" },
+                  ),
+                "could not change the provider's state",
+              )
+            }
           />
         ) : (
           <p className="state">Loading.</p>
@@ -165,20 +238,55 @@ export default function App() {
           that is fast but expensive looks different from one that is simply
           slow. The other three policies do not score at all.
         </p>
-        {s ? (
-          <Decision ranking={s.live.ranking} policy={s.live.policy} />
-        ) : (
-          <p className="state">Loading.</p>
+        {s ? <Decision ranking={s.live.ranking} policy={policy} /> : null}
+
+        {policy === "adaptive" && (
+          <div className="tuning">
+            <label>
+              tail weight
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={tail}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setTail(v);
+                  void retune(v, penalty);
+                }}
+              />
+              <span className="val">{tail.toFixed(2)}</span>
+            </label>
+            <label>
+              error penalty
+              <input
+                type="range"
+                min={0}
+                max={12}
+                step={0.5}
+                value={penalty}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setPenalty(v);
+                  void retune(tail, v);
+                }}
+              />
+              <span className="val">{penalty.toFixed(1)}</span>
+            </label>
+            <span style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>
+              Move either and the ranking reorders live. At tail weight 1 the
+              router judges purely on the tail; at 0, purely on the median.
+            </span>
+          </div>
         )}
       </section>
 
       <section>
         <h2>Every request, in order</h2>
         <p className="sub">
-          One tick per request, coloured by who served it. Switch the policy
-          above, send more traffic, and the colour balance changes — that
-          shift is the whole claim of the project, and it is not visible in
-          an average.
+          One tick per request, coloured by who served it and as tall as it
+          was slow. New requests arrive on the right.
         </p>
         <Tape rows={rows} ranking={s?.live.ranking ?? []} />
       </section>
@@ -187,87 +295,32 @@ export default function App() {
         <section>
           <h2>Totals</h2>
           <div className="tiles">
-            <div>
-              <span className="v">{s.totals.requests.toLocaleString()}</span>
-              <span className="k">requests</span>
-            </div>
-            <div>
-              <span className="v">{ms(s.totals.p50_ms)}</span>
-              <span className="k">p50</span>
-            </div>
-            <div>
-              <span className="v">{ms(s.totals.p95_ms)}</span>
-              <span className="k">p95</span>
-            </div>
-            <div>
-              <span className="v">{ms(s.totals.p99_ms)}</span>
-              <span className="k">p99</span>
-            </div>
-            <div>
-              <span className="v">{s.totals.failovers}</span>
-              <span className="k">fail-overs</span>
-            </div>
-            <div>
-              <span className="v">{s.totals.failures}</span>
-              <span className="k">failed</span>
-            </div>
-            <div>
-              <span className="v">{usd(s.totals.cost_usd)}</span>
-              <span className="k">spent</span>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {s && s.by_provider.length > 0 && (
-        <section>
-          <h2>By provider</h2>
-          <div className="scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Provider</th>
-                  <th className="num">Requests</th>
-                  <th className="num">Failures</th>
-                  <th className="num">p50</th>
-                  <th className="num">p95</th>
-                  <th className="num">Tokens</th>
-                  <th className="num">Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.by_provider.map((p) => (
-                  <tr key={p.provider}>
-                    <td>
-                      <i
-                        className="dot"
-                        style={{
-                          display: "inline-block",
-                          width: 9,
-                          height: 9,
-                          marginRight: 8,
-                          background: `var(--p${providerIndex(names, p.provider)})`,
-                        }}
-                      />
-                      {p.provider}
-                    </td>
-                    <td className="num">{p.requests}</td>
-                    <td className="num">{p.failures}</td>
-                    <td className="num">{ms(p.p50_ms)}</td>
-                    <td className="num">{ms(p.p95_ms)}</td>
-                    <td className="num">{p.tokens.toLocaleString()}</td>
-                    <td className="num">{usd(p.cost_usd)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Tile
+              value={s.totals.requests}
+              label="requests"
+              render={(v) => Math.round(v).toLocaleString()}
+            />
+            <Tile value={s.totals.p50_ms} label="p50" render={ms} />
+            <Tile value={s.totals.p95_ms} label="p95" render={ms} />
+            <Tile value={s.totals.p99_ms} label="p99" render={ms} />
+            <Tile
+              value={s.totals.failovers}
+              label="fail-overs"
+              render={(v) => String(Math.round(v))}
+            />
+            <Tile
+              value={s.totals.failures}
+              label="failed"
+              render={(v) => String(Math.round(v))}
+            />
+            <Tile value={s.totals.cost_usd} label="spent" render={usd} />
           </div>
         </section>
       )}
 
       {rows.length > 0 && (
         <section>
-          <h2>The last twelve requests</h2>
+          <h2>The last ten requests</h2>
           <div className="scroll">
             <table>
               <thead>
@@ -276,12 +329,11 @@ export default function App() {
                   <th>Served by</th>
                   <th className="num">Latency</th>
                   <th className="num">Fail-overs</th>
-                  <th className="num">Tokens</th>
                   <th className="num">Cost</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 12).map((r) => (
+                {rows.slice(0, 10).map((r) => (
                   <tr key={r.request_id} className={r.ok ? undefined : "bad"}>
                     <td>
                       <span className="fig">{r.request_id.slice(-8)}</span>
@@ -290,9 +342,6 @@ export default function App() {
                     <td>{r.provider ?? "—"}</td>
                     <td className="num">{ms(r.latency_ms)}</td>
                     <td className="num">{r.failovers || ""}</td>
-                    <td className="num">
-                      {(r.input_tokens + r.output_tokens).toLocaleString()}
-                    </td>
                     <td className="num">{usd(r.cost_usd)}</td>
                   </tr>
                 ))}
@@ -306,8 +355,8 @@ export default function App() {
         Point any OpenAI client at <code>/v1</code> and it gains fail-over,
         health-aware routing and per-request cost accounting without changing
         its own code. On a replayed trace of 4,000 requests, adaptive routing
-        cut p95 latency 71.8% and circuit-breaker trips 81% against the
-        static fallback list most gateways ship.
+        cut p95 latency 71.8% and circuit-breaker trips 81% against the static
+        fallback list most gateways ship.
       </footer>
     </div>
   );
