@@ -518,3 +518,86 @@ footer {
     animation-duration: 0.001ms !important;
   }
 }
+
+/* -- the flow -------------------------------------------------------- */
+
+.flowwrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 6px 0;
+}
+
+svg.flow {
+  display: block;
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+}
+
+svg.flow .gate {
+  fill: var(--panel);
+  stroke: var(--ink-soft);
+  stroke-width: 1;
+}
+
+svg.flow .gatename {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+svg.flow .gatesub,
+svg.flow .inbound {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  fill: var(--ink-faint);
+}
+
+svg.flow .pname {
+  font-family: var(--mono);
+  font-size: 13px;
+  fill: var(--ink);
+}
+
+svg.flow .pshare {
+  font-family: var(--mono);
+  font-size: 12px;
+  fill: var(--ink-soft);
+}
+
+svg.flow .pstat {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  fill: var(--ink-faint);
+}
+
+svg.flow .brk {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+svg.flow .brk-open {
+  stroke: var(--down);
+}
+
+svg.flow .brk-half_open {
+  stroke: var(--warn);
+}
+
+svg.flow text.brktext {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--ink-faint);
+}
+
+svg.flow text.brk-open {
+  fill: var(--down);
+}
+
+svg.flow text.brk-half_open {
+  fill: var(--warn);
+}

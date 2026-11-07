@@ -98,10 +98,22 @@ describe("bar segments", () => {
 });
 
 describe("provider colours", () => {
-  it("is stable for a given ranking order", () => {
+  it("does not change when a provider's rank changes", () => {
+    // Keyed on the sorted names, not on ranking order. Keyed on rank, a
+    // provider would swap colour the moment it started losing -- which is
+    // exactly when you are staring at the tape trying to see where the
+    // traffic moved, and the one moment the colours must hold still.
+    const winning = ["sim-fast", "sim-cheap", "sim-balanced"];
+    const losing = ["sim-balanced", "sim-cheap", "sim-fast"];
+    for (const name of winning) {
+      expect(providerIndex(winning, name)).toBe(providerIndex(losing, name));
+    }
+  });
+
+  it("gives each provider a distinct slot", () => {
     const names = ["sim-fast", "sim-cheap", "sim-balanced"];
-    expect(providerIndex(names, "sim-fast")).toBe(0);
-    expect(providerIndex(names, "sim-balanced")).toBe(2);
+    const slots = names.map((n) => providerIndex(names, n));
+    expect(new Set(slots).size).toBe(names.length);
   });
 
   it("does not throw on a provider it has not seen", () => {

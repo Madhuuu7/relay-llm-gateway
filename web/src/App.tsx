@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Decision } from "./components/Decision";
+import { Flow } from "./components/Flow";
 import { Tape } from "./components/Tape";
 import { getJSON, usePoll, type RequestRow, type Stats } from "./lib/api";
 import { providerIndex } from "./lib/score";
@@ -139,13 +140,36 @@ export default function App() {
       )}
 
       <section>
-        <h2>Where the next request goes</h2>
+        <h2>Where the traffic went</h2>
         <p className="sub">
-          The policy scores each provider and sends to the lowest. Every bar
-          is that score, split into what produced it — so a provider that is
-          fast but expensive looks different from one that is simply slow.
+          Ribbon thickness is each provider's share of the requests served.
+          Change the policy above and watch it rebalance — that shift is the
+          whole claim of the project, and no average shows it.
         </p>
-        {s ? <Decision ranking={s.live.ranking} /> : <p className="state">Loading.</p>}
+        {s ? (
+          <Flow
+            providers={s.live.providers}
+            policy={s.live.policy}
+            totalRequests={s.live.served}
+          />
+        ) : (
+          <p className="state">Loading.</p>
+        )}
+      </section>
+
+      <section>
+        <h2>Why it went there</h2>
+        <p className="sub">
+          The adaptive policy scores each provider and sends to the lowest.
+          Each bar is that score, split into what produced it — so a provider
+          that is fast but expensive looks different from one that is simply
+          slow. The other three policies do not score at all.
+        </p>
+        {s ? (
+          <Decision ranking={s.live.ranking} policy={s.live.policy} />
+        ) : (
+          <p className="state">Loading.</p>
+        )}
       </section>
 
       <section>
@@ -243,7 +267,7 @@ export default function App() {
 
       {rows.length > 0 && (
         <section>
-          <h2>Request log</h2>
+          <h2>The last twelve requests</h2>
           <div className="scroll">
             <table>
               <thead>
@@ -257,7 +281,7 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 25).map((r) => (
+                {rows.slice(0, 12).map((r) => (
                   <tr key={r.request_id} className={r.ok ? undefined : "bad"}>
                     <td>
                       <span className="fig">{r.request_id.slice(-8)}</span>

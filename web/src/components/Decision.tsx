@@ -1,18 +1,18 @@
-/* The routing decision, with the score taken apart.
+/* Why the router chose what it chose — when the policy actually chooses.
  *
- * Every gateway dashboard shows per-provider latency. The thing this one can
- * show that they cannot is *why the router chose what it chose*: the policy
- * publishes its score, and the score is a sum of four terms that frequently
- * disagree. The fastest provider is usually carrying the largest price term,
- * which is exactly the trade a static fallback list cannot express and the
- * reason this project exists.
+ * Only the adaptive policy computes a score, and that score is a sum of
+ * four terms that routinely disagree: the fastest provider is usually the
+ * one carrying the largest price term. Showing the split is the thing this
+ * console can do that a per-provider latency chart cannot.
  *
- * Lower is better, so the shortest bar wins — which is the one visual
- * convention here worth stating out loud, because every other bar chart a
- * reader has seen rewards length.
+ * Under `static`, `round_robin` and `random` there is nothing to show,
+ * because there is no arithmetic -- the gateway returns nulls and says so
+ * in `reason`. This panel says that plainly rather than rendering an empty
+ * chart, and the honest version of it is a sentence explaining what the
+ * policy does instead.
  */
 
-import { decompose, providerIndex, segments, type Ranked } from "../lib/score";
+import { decompose, providerIndex, ranks, segments, type Ranked } from "../lib/score";
 
 const SEG_CLASS: Record<string, string> = {
   latency: "seg-latency",
@@ -21,27 +21,41 @@ const SEG_CLASS: Record<string, string> = {
   cost: "seg-cost",
 };
 
-function ms(value: number): string {
+const UNSCORED: Record<string, string> = {
+  static:
+    "Static routing tries the providers in a fixed order and moves on only when one fails. It has no score: a provider that is slow but still returning 200s stays at the head of the list forever.",
+  round_robin:
+    "Round robin rotates through the providers in turn, ignoring how any of them is behaving. It has no score.",
+  random:
+    "Random picks uniformly at random. It has no score, and it is here as a control — it spreads load without measuring anything.",
+};
+
+function ms(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return "—";
   return value >= 1000 ? `${(value / 1000).toFixed(1)}s` : `${Math.round(value)}ms`;
 }
 
-export function Decision({ ranking }: { ranking: Ranked[] }) {
-  if (!ranking.length) {
+export function Decision({ ranking, policy }: { ranking: Ranked[]; policy: string }) {
+  const scored = ranking.filter(ranks);
+
+  if (!scored.length) {
     return (
       <p className="state">
-        No providers are registered. The gateway has nothing to route between.
+        {UNSCORED[policy] ??
+          `The ${policy} policy does not rank providers by a score, so there is nothing to break down.`}{" "}
+        Switch to <strong>adaptive</strong> to see the arithmetic.
       </p>
     );
   }
 
   const names = ranking.map((r) => r.provider);
-  const scale = Math.max(...ranking.map((r) => r.score), 1);
-  const anyUnexplained = ranking.some((r) => !decompose(r).explains);
+  const scale = Math.max(...scored.map((r) => r.score ?? 0), 1);
+  const anyUnexplained = scored.some((r) => !decompose(r).explains);
 
   return (
     <>
       <div className="decision">
-        {ranking.map((r, i) => {
+        {scored.map((r, i) => {
           const parts = decompose(r);
           const colour = `var(--p${providerIndex(names, r.provider)})`;
           const chosen = i === 0 && r.breaker !== "open";
@@ -60,13 +74,7 @@ export function Decision({ ranking }: { ranking: Ranked[] }) {
               <div
                 className="bar"
                 role="img"
-                aria-label={`${r.provider} score ${Math.round(r.score)}, ${
-                  parts.explains
-                    ? `latency ${Math.round(parts.latency)}, error ${Math.round(
-                        parts.error,
-                      )}, queue ${Math.round(parts.queue)}, price ${Math.round(parts.cost)}`
-                    : "components unavailable"
-                }`}
+                aria-label={`${r.provider} score ${Math.round(r.score ?? 0)}`}
               >
                 {parts.explains ? (
                   segments(parts, scale).map((s) => (
@@ -80,13 +88,16 @@ export function Decision({ ranking }: { ranking: Ranked[] }) {
                 ) : (
                   <span
                     className="seg-latency"
-                    style={{ width: `${(r.score / scale) * 100}%` }}
-                    title={`score ${Math.round(r.score)}`}
+                    style={{ width: `${((r.score ?? 0) / scale) * 100}%` }}
+                    title={`score ${Math.round(r.score ?? 0)}`}
                   />
                 )}
               </div>
 
               <div className="figs">
+                <span>
+                  score <b>{Math.round(r.score ?? 0)}</b>
+                </span>
                 <span>
                   p50 <b>{ms(r.p50_ms)}</b>
                 </span>
@@ -94,14 +105,8 @@ export function Decision({ ranking }: { ranking: Ranked[] }) {
                   p95 <b>{ms(r.p95_ms)}</b>
                 </span>
                 <span>
-                  err <b>{(r.error_rate * 100).toFixed(1)}%</b>
+                  err <b>{((r.error_rate ?? 0) * 100).toFixed(1)}%</b>
                 </span>
-                {r.in_flight > 0 && (
-                  <span>
-                    busy <b>{r.in_flight}</b>
-                  </span>
-                )}
-                <span className={`breaker ${r.breaker}`}>{r.breaker.replace("_", "-")}</span>
               </div>
             </div>
           );
@@ -129,9 +134,9 @@ export function Decision({ ranking }: { ranking: Ranked[] }) {
 
       {anyUnexplained && (
         <p className="state err" style={{ marginTop: 14 }}>
-          One or more scores could not be reconstructed from the published
-          components, so those bars show the total only. The gateway is
-          probably tuned with a different <code>tail_weight</code> or{" "}
+          A score could not be reconstructed from its published components,
+          so that bar shows the total only. The gateway is probably tuned
+          with a different <code>tail_weight</code> or{" "}
           <code>error_penalty</code> than this console assumes.
         </p>
       )}
