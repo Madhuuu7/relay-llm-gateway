@@ -24,7 +24,7 @@
  * the only warm colour on the page; and the sheet itself. Everything else
  * is ink and rule.
  *
- * The light theme is the card: #9dccd0 stock, hairlines a shade deeper,
+ * The light theme is the card: #f6f0e4 stock, hairlines a shade deeper,
  * and writing in near-black. The dark theme is not that card dimmed -- it is the same
  * sheet read under a lamp at night, where the stock goes to deep plum and
  * the writing to off-white. The palette lives in the stock, the rules and
@@ -59,27 +59,29 @@
 }
 
 :root {
-  --ground: #86b9be;
-  --sheet: #9dccd0;
-  --inset: #b2d9dc;
-  --rule: #79aeb3;
-  --rule-soft: #8fbec2;
+  --ground: #e7dfcd;
+  --sheet: #f6f0e4;
+  /* On stock this pale the inset has to go a shade darker than the sheet
+   * rather than lighter, or a tinted row reads as a printing fault. */
+  --inset: #efe7d6;
+  --rule: #d6cbb3;
+  --rule-soft: #e4dbc8;
 
   /* The writing is near-black, not a tint of the palette: the stock, the
    * rules and the trunks carry the colour, and the text should read as ink
    * on the card rather than as another shade of the card. */
   --ink: #16181c;
-  --ink-soft: #363f41;
-  --ink-faint: #434d4f;
+  --ink-soft: #4a4842;
+  --ink-faint: #5c5950;
 
   /* Three trunks, told apart by hue rather than brightness. The stock is
    * darker than a white page, so these are mixed darker than the obvious
    * pastels would be: each clears 3:1 against the card as a mark, and the
    * failure colour clears 4.5:1 because it is also set as text. */
-  --p0: #2b5680;
-  --p1: #5a4e8c;
-  --p2: #8a3a55;
-  --down: #7f2a42;
+  --p0: #2f5b86;
+  --p1: #5f538f;
+  --p2: #8c3f58;
+  --down: #9c3a55;
 
   --mono: "Spline Sans Mono", ui-monospace, Consolas, monospace;
   --sans: "Spline Sans", system-ui, -apple-system, sans-serif;
