@@ -92,21 +92,37 @@ src/relay/
     policies.py            static · round_robin · random · adaptive (strategy objects)
     gateway.py             rank → gate on breaker → call with timeout → record → fail over
   api/app.py               OpenAI-compatible /v1 + /stats + /requests + /admin + /demo
-web/index.html             single-file live console: traffic, health, ranking, cost, request log
+web/                       the console: React + Vite, self-hosted fonts, recorded fixtures
 scripts/replay.py          the controlled policy benchmark above, with --sweep
-tests/                     126 tests
+tests/                     129 tests, plus 20 for the console
 ```
 
-### The dashboard
+### The console
 
-Served at `/` by the same process as the API — one service to deploy, no CORS, no build step, no
-`node_modules`. It polls `/stats` and `/requests` every 2 s and shows traffic in 10-second buckets,
-each provider's live p50/p95/error-EWMA/in-flight with its breaker state, **the current ranking with
-every score term broken out** (the point being that the routing decision is legible, not a black
-box), cost split by provider, and the recent request log with the full fail-over chain per request.
+Served at `/` by the same process as the API — one service to deploy, no CORS. It is drawn as a
+switchboard's traffic sheet, because that is what the gateway is: calls arrive, something decides
+which trunk each one goes down, and when a trunk goes bad the breaker opens and the traffic moves.
 
-The policy can be swapped at runtime from the header — which is the reason policies are strategy
-objects rather than a branch inside the gateway — and breakers can be reset by hand.
+- **The controlled comparison** leads, as four lines on one millisecond axis — a bar from each
+  policy's median to its p95, which is the stretch a caller actually feels. Three bars are long and
+  one is short, and that is the project. The percentage is in the sentence underneath, where a
+  number that needs a caption belongs.
+- **The trunks** carry a thickness equal to their share of traffic, and each breaker is drawn as
+  what it is: a knife switch sitting in the line. Closed, the blade bridges the gap. Open, the gap
+  is plainly a gap. Half-open, the blade rests against the contact, dashed — one request is going
+  through to find out whether the provider has recovered. Clicking a trunk throws its switch.
+- **The score lanes** break the adaptive policy's number into the four terms that produced it, so a
+  provider that is fast but expensive looks different from one that is simply slow. The other three
+  policies do not score at all, and the panel says so rather than drawing an empty chart.
+- **The tape** is one tick per call in order, coloured by trunk: a breaker opening reads as a change
+  of colour part way along, which no average shows.
+
+The policy can be swapped at runtime from the header — the reason policies are strategy objects
+rather than a branch inside the gateway — and the tuning sliders re-rank the providers live.
+
+Published without a gateway behind it, the page reads recorded fixtures from `web/public/demo`,
+says so on itself, and hides the controls that would need a process rather than leaving them to
+fail.
 
 ---
 
@@ -116,7 +132,7 @@ objects rather than a branch inside the gateway — and breakers can be reset by
 python -m venv .venv && .venv/Scripts/activate        # Windows; use bin/activate on POSIX
 pip install -e ".[dev]"
 
-python -m pytest                                      # 126 tests
+python -m pytest                                      # 129 tests
 python scripts/replay.py --markdown                   # the benchmark table
 python -m uvicorn relay.api.app:app --app-dir src --reload
 ```
@@ -156,7 +172,7 @@ generation then returns 403, because an unauthenticated endpoint should not be a
 
 ## Testing
 
-126 tests, and the ones that matter are not line coverage:
+129 tests, and the ones that matter are not line coverage:
 
 - **Streaming estimators are checked against exact answers.** P² quantiles are compared to a sorted
   reference over adversarial distributions (bimodal, heavy-tailed, sorted, constant) with a stated
