@@ -50,10 +50,14 @@ function useTheme() {
     } catch {
       /* private window */
     }
+    // The sheet is the card, so light is the default and dark is the lamp.
+    // Asking for light and defaulting to dark meant a visitor who had set no
+    // preference at all got the night version of a page whose whole palette
+    // is a blue card.
     return typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: light)").matches
-      ? "light"
-      : "dark";
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
   });
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
