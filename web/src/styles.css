@@ -24,13 +24,12 @@
  * the only warm colour on the page; and the sheet itself. Everything else
  * is ink and rule.
  *
- * The light theme is the card: #ccdef0 stock, hairlines in #9fb5cf, and
- * writing in near-black. The dark theme is not that card dimmed -- it is
- * the same sheet read under a lamp at night, where the stock goes to deep
- * plum and the writing to off-white. The five swatches are the stock, the
- * rules and the trunks; the writing is ink in both, because text carrying
- * a tint reads worse than text that does not, and the palette has better
- * places to be.
+ * The light theme is the card: #cebdbd stock, warm hairlines, and writing
+ * in near-black. The dark theme is not that card dimmed -- it is the same
+ * sheet read under a lamp at night, where the stock goes to deep plum and
+ * the writing to off-white. The palette lives in the stock, the rules and
+ * the trunks; the writing is ink in both, because text carrying a tint
+ * reads worse than text that does not.
  */
 
 /* Fonts are served beside the bundle rather than from a font host: this
@@ -60,25 +59,27 @@
 }
 
 :root {
-  --ground: #b8cee4;
-  --sheet: #ccdef0;
-  --inset: #dcebf8;
-  --rule: #9fb5cf;
-  --rule-soft: #b6cde2;
+  --ground: #b7a4a4;
+  --sheet: #cebdbd;
+  --inset: #dbcccc;
+  --rule: #a89595;
+  --rule-soft: #bdabab;
 
-  /* The writing is near-black, not tinted navy: the palette belongs to the
-   * stock, the rules and the trunks, and the text should read as ink on a
-   * blue card rather than as another shade of the card. */
+  /* The writing is near-black, not a tint of the palette: the stock, the
+   * rules and the trunks carry the colour, and the text should read as ink
+   * on the card rather than as another shade of the card. */
   --ink: #16181c;
-  --ink-soft: #434950;
-  --ink-faint: #4b5159;
+  --ink-soft: #443e3d;
+  --ink-faint: #4e4745;
 
-  /* three trunks, told apart by hue and weight rather than brightness */
+  /* Three trunks, told apart by hue rather than brightness. The stock is
+   * darker than a white page, so these are mixed darker than the obvious
+   * pastels would be: each clears 3:1 against the card as a mark, and the
+   * failure colour clears 4.5:1 because it is also set as text. */
   --p0: #2f5b86;
-  --p1: #6b5f9c;
-  --p2: #9a5572;
-  /* the only warm colour on the sheet */
-  --down: #a3455f;
+  --p1: #5f538f;
+  --p2: #8c3f58;
+  --down: #832c45;
 
   --mono: "Spline Sans Mono", ui-monospace, Consolas, monospace;
   --sans: "Spline Sans", system-ui, -apple-system, sans-serif;
