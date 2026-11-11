@@ -1,96 +1,117 @@
-/* relay console — a routing desk.
+/* relay console — a switchboard's traffic sheet.
  *
- * This is infrastructure, and the register is a routing table rather than a
- * report: flat panels, hairline rules, dense tabular figures, no shadows and
- * no gradients. The surface stays out of the way because the information is
- * the design.
+ * relay is a switch. Calls arrive, and something decides which trunk each
+ * one goes down; when a trunk goes bad the circuit breaker opens and the
+ * traffic moves. That is a switchboard, and the document a switchboard
+ * produces is a traffic sheet: how many calls, down which trunk, how long
+ * each waited, what each cost, and what the operator did when one failed.
  *
- * Colour is categorical and carries exactly one meaning: which provider. The
- * three hues are the only saturation on the page, so a glance at the tape or
- * the score bars reads as "where did the traffic go" without a legend. Red is
- * held back for a tripped breaker, which is the one state that should
- * interrupt you.
+ * So the page is that sheet, on blue card stock, in slate ink, with the
+ * trunks drawn as lines and the breakers drawn as what they are -- knife
+ * switches sitting in the line, thrown open or closed. Clicking one throws
+ * it. A dashboard would have drawn the breaker as a coloured pill labelled
+ * "open"; a schematic draws the gap in the circuit.
  *
- * Fonts are served from this origin. A gateway console is a thing you open
- * when something is wrong, which is exactly when you do not want it waiting
- * on fonts.gstatic.com.
+ * The hero is the tail, because the tail is the claim. Four routing rules
+ * ran against one recorded trace with the providers behaving identically,
+ * and the only honest way to show that is all four laid on the same
+ * millisecond axis, where the long bar is the problem and the short one is
+ * the result. The percentage goes in the sentence underneath, where a
+ * number that needs a caption belongs.
+ *
+ * Colour does three jobs and no others: three trunks, three hues held
+ * apart by hue and weight rather than by brightness; a failure, which is
+ * the only warm colour on the page; and the sheet itself. Everything else
+ * is ink and rule.
+ *
+ * The light theme is the card: #ccdef0 stock, slate ink, hairlines in
+ * #9fb5cf. The dark theme is not that card dimmed -- it is the same sheet
+ * read under a lamp at night, where the ink goes to #cabccb and the stock
+ * goes to deep plum. Both palettes are the same five swatches.
  */
 
+/* Fonts are served beside the bundle rather than from a font host: this
+ * page is demoed on a free instance that has just woken up, and a typeface
+ * that arrives late is a page in the wrong face at exactly the wrong
+ * moment. Latin subsets only.
+ *
+ * Spline Sans is a technical grotesque with narrow, unambiguous figures --
+ * this sheet is mostly figures in columns. Spline Sans Mono holds the
+ * columns that have to align, and nothing else: on this page a monospaced
+ * figure means a measurement.
+ */
 @font-face {
-  font-family: "Space Grotesk";
+  font-family: "Spline Sans";
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 300 700;
   font-display: swap;
-  src: url("/fonts/space-grotesk-variable.woff2") format("woff2");
+  src: url("/fonts/spline-sans-variable.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: "JetBrains Mono";
+  font-family: "Spline Sans Mono";
   font-style: normal;
-  font-weight: 400 600;
+  font-weight: 300 700;
   font-display: swap;
-  src: url("/fonts/jetbrains-mono-variable.woff2") format("woff2");
+  src: url("/fonts/spline-sans-mono-variable.woff2") format("woff2");
 }
 
 :root {
-  --bg: #080b11;
-  --panel: #111823;
-  --rule: #2b3646;
-  --rule-soft: #1a2230;
-  --ink: #f2f6fb;
-  --ink-soft: #a9b6c9;
-  --ink-faint: #74839a;
+  --ground: #b8cee4;
+  --sheet: #ccdef0;
+  --inset: #dcebf8;
+  --rule: #9fb5cf;
+  --rule-soft: #b6cde2;
 
-  /* One hue per provider, in the order the gateway lists them. Chosen to
-   * stay distinguishable under the common forms of colour blindness: a
-   * blue, a warm yellow and a magenta separate on both axes. */
-  --p0: #2ab7ff;
-  --p1: #ffb020;
-  --p2: #e46ae4;
-  --p3: #2fe0b0;
+  --ink: #1b2b3f;
+  --ink-soft: #3f5a76;
+  --ink-faint: #476179;
 
-  --down: #ff3d63;
-  --warn: #ffb020;
-  --ok: #2fe0b0;
+  /* three trunks, told apart by hue and weight rather than brightness */
+  --p0: #2f5b86;
+  --p1: #6b5f9c;
+  --p2: #9a5572;
+  /* the only warm colour on the sheet */
+  --down: #a3455f;
 
-  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
-  --sans: "Space Grotesk", system-ui, -apple-system, sans-serif;
-  --gutter: 16px;
+  --mono: "Spline Sans Mono", ui-monospace, Consolas, monospace;
+  --sans: "Spline Sans", system-ui, -apple-system, sans-serif;
 }
 
-/* The console is dark because an operations surface is, but the light
- * scheme is not an afterthought -- it is what a screenshot in a bright
- * room needs. */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #f7f8fa;
-    --panel: #ffffff;
-    --rule: #d8dde5;
-    --rule-soft: #e8ebf0;
-    --ink: #121720;
-    --ink-soft: #4d5867;
-    --ink-faint: #7b8696;
-    --p0: #0a6ea8;
-    --p1: #9a6300;
-    --p2: #8e2192;
-    --p3: #0c7a62;
-    --down: #c20033;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #16151b;
+    --sheet: #1e1c25;
+    --inset: #262430;
+    --rule: #3b3747;
+    --rule-soft: #2e2b38;
+
+    --ink: #cabccb;
+    --ink-soft: #a89fae;
+    --ink-faint: #9a919f;
+
+    --p0: #9fb5cf;
+    --p1: #b3a3e0;
+    --p2: #dfa3bd;
+    --down: #e2798f;
   }
 }
 
-:root[data-theme="light"] {
-  --bg: #f7f8fa;
-  --panel: #ffffff;
-  --rule: #d8dde5;
-  --rule-soft: #e8ebf0;
-  --ink: #121720;
-  --ink-soft: #4d5867;
-  --ink-faint: #7b8696;
-  --p0: #0a6ea8;
-  --p1: #9a6300;
-  --p2: #8e2192;
-  --p3: #0c7a62;
-  --down: #c20033;
+:root[data-theme="dark"] {
+  --ground: #16151b;
+  --sheet: #1e1c25;
+  --inset: #262430;
+  --rule: #3b3747;
+  --rule-soft: #2e2b38;
+
+  --ink: #cabccb;
+  --ink-soft: #a89fae;
+  --ink-faint: #9a919f;
+
+  --p0: #9fb5cf;
+  --p1: #b3a3e0;
+  --p2: #dfa3bd;
+  --down: #e2798f;
 }
 
 * {
@@ -99,78 +120,86 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--ground);
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 15.5px;
+  line-height: 1.6;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
-.fig,
-td.num,
-th.num {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
 :focus-visible {
-  outline: 2px solid var(--p0);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
-.shell {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 0 var(--gutter) 80px;
+code,
+.fig {
+  font-family: var(--mono);
+  font-size: 0.87em;
 }
 
-/* -- masthead -------------------------------------------------------- */
+/* -- the sheet -------------------------------------------------------- */
+
+.shell {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 30px 16px 70px;
+}
+
+.sheet {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  padding: 0 clamp(16px, 3.6vw, 36px) 34px;
+}
+
+/* -- head ------------------------------------------------------------- */
 
 header.top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 20px;
-  padding: 22px 0 16px;
-  border-bottom: 1px solid var(--rule);
-  margin-bottom: 26px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px 26px;
+  padding: 26px 0 16px;
+  border-bottom: 2px solid var(--ink);
 }
 
 h1 {
   margin: 0;
-  font-size: 27px;
+  font-size: clamp(30px, 6vw, 44px);
   font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
 }
 
-header.top p {
+header.top > p {
+  grid-column: 1 / -1;
   margin: 0;
+  max-width: 68ch;
   color: var(--ink-soft);
-  font-size: 14px;
-  max-width: 50ch;
-  flex: 1 1 36ch;
 }
 
 .controls {
   display: flex;
+  gap: 8px;
   align-items: center;
-  gap: 10px;
-  margin-left: auto;
   flex-wrap: wrap;
+  grid-row: 1;
+  grid-column: 2;
+  justify-self: end;
 }
 
 select,
 button {
-  background: var(--panel);
+  background: transparent;
   color: var(--ink);
   border: 1px solid var(--rule);
   border-radius: 0;
   font: inherit;
   font-size: 13.5px;
-  padding: 7px 12px;
+  font-weight: 500;
+  padding: 6px 12px;
   cursor: pointer;
 }
 
@@ -178,167 +207,476 @@ select {
   font-family: var(--mono);
 }
 
-button:hover:not(:disabled),
-select:hover {
-  border-color: var(--ink-soft);
+select:hover,
+button:hover:not(:disabled) {
+  border-color: var(--ink);
 }
 
 button.go {
-  background: var(--p0);
-  border-color: var(--p0);
-  color: var(--bg);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--sheet);
   font-weight: 600;
 }
 
-button:disabled {
-  opacity: 0.5;
-  cursor: progress;
+button.go.streaming {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
-/* -- sections -------------------------------------------------------- */
+button:disabled,
+select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.livedot {
+  width: 7px;
+  height: 7px;
+  display: inline-block;
+  background: var(--down);
+  margin-right: 6px;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .livedot {
+    animation: none;
+  }
+}
+
+/* -- notes ------------------------------------------------------------ */
+
+.state {
+  margin: 20px 0 0;
+  padding: 13px 15px;
+  background: var(--inset);
+  border-left: 3px solid var(--rule);
+  font-size: 14.5px;
+  color: var(--ink-soft);
+  max-width: 78ch;
+}
+
+.state.err {
+  border-left-color: var(--down);
+  color: var(--down);
+}
+
+.state p {
+  margin: 0 0 6px;
+}
+
+.state p:last-child {
+  margin-bottom: 0;
+}
+
+/* -- sections --------------------------------------------------------- */
 
 section {
-  margin-bottom: 38px;
+  padding-top: 32px;
 }
 
 h2 {
   margin: 0 0 3px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--ink);
+  font-size: 18.5px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
 .sub {
-  margin: 0 0 16px;
+  margin: 0 0 20px;
+  max-width: 72ch;
   color: var(--ink-soft);
-  font-size: 13.5px;
-  max-width: 76ch;
+  font-size: 14.5px;
 }
 
-/* -- the decision ---------------------------------------------------- */
+/* -- the tail chart: four rules on one millisecond axis --------------- */
+
+.tails {
+  margin-bottom: 18px;
+}
+
+.tailrow {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 9px 8px 9px 0;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.tailrow:last-of-type {
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.tailrow.win {
+  background: var(--inset);
+  border-top-color: var(--rule);
+}
+
+.tailrow .pol {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding-left: 8px;
+}
+
+.tailrow.win .pol {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.axis {
+  position: relative;
+  height: 26px;
+}
+
+/* the run up to the median: a hairline, because nothing interesting
+ * happens there and every policy has one */
+.axis .lead {
+  position: absolute;
+  top: 13px;
+  height: 1px;
+  background: var(--rule);
+}
+
+/* median to p95: the bar that is the whole argument */
+.axis .body {
+  position: absolute;
+  top: 6px;
+  height: 14px;
+  background: var(--p0);
+  opacity: 0.55;
+}
+
+.tailrow.win .body {
+  opacity: 1;
+}
+
+/* p95 to p99: where exploration and breaker probes land */
+.axis .whisker {
+  position: absolute;
+  top: 12px;
+  height: 2px;
+  background: var(--p0);
+  opacity: 0.4;
+}
+
+.axis .cap {
+  position: absolute;
+  top: 7px;
+  width: 1.5px;
+  height: 12px;
+  background: var(--ink-soft);
+}
+
+.axis .at50 {
+  position: absolute;
+  top: 3px;
+  width: 2px;
+  height: 20px;
+  background: var(--ink);
+}
+
+.tailscale {
+  display: flex;
+  justify-content: space-between;
+  margin: 6px 0 0 126px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.tailkey {
+  margin: 10px 0 0 126px;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.readout {
+  margin: 20px 0 0;
+  max-width: 68ch;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.readout b {
+  font-weight: 700;
+}
+
+/* -- tables ----------------------------------------------------------- */
+
+.scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  padding: 0 10px 6px 0;
+  border-bottom: 1.5px solid var(--ink);
+  white-space: nowrap;
+}
+
+td {
+  padding: 7px 10px 7px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: baseline;
+}
+
+th.num,
+td.num {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+tr.best td {
+  background: var(--inset);
+}
+
+tr.best td:first-child {
+  font-weight: 600;
+}
+
+tr.bad td {
+  color: var(--down);
+}
+
+.p95bar {
+  display: block;
+  height: 3px;
+  background: var(--rule-soft);
+  margin-bottom: 4px;
+}
+
+.p95bar span {
+  display: block;
+  height: 100%;
+  background: var(--p0);
+  opacity: 0.5;
+}
+
+.p95bar span.win {
+  opacity: 1;
+}
+
+/* -- the schematic ---------------------------------------------------- */
+
+.flowwrap {
+  background: var(--inset);
+  border: 1px solid var(--rule-soft);
+  padding: 10px 6px;
+}
+
+svg.flow {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+svg.flow .bus {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+svg.flow .gate {
+  fill: var(--sheet);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+svg.flow .gatename {
+  fill: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+svg.flow .gatesub,
+svg.flow .inbound {
+  fill: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+svg.flow .pname {
+  fill: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+svg.flow .pshare,
+svg.flow .pstat {
+  fill: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+svg.flow .drainhint {
+  fill: var(--ink-faint);
+  font-family: var(--sans);
+  font-size: 11.5px;
+}
+
+svg.flow .term {
+  fill: var(--inset);
+  stroke-width: 1.5;
+}
+
+svg.flow .blade {
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  fill: none;
+}
+
+svg.flow .node-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+svg.flow .node-ring {
+  fill: none;
+  stroke: transparent;
+  pointer-events: none;
+}
+
+svg.flow .node-hit:hover + .node-ring,
+svg.flow .node-hit:focus-visible + .node-ring {
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+svg.flow .statelabel {
+  font-family: var(--mono);
+  font-size: 11px;
+  fill: var(--ink-soft);
+}
+
+svg.flow .statelabel.open {
+  fill: var(--down);
+}
+
+/* -- the score lanes -------------------------------------------------- */
 
 .decision {
-  border-top: 1px solid var(--rule);
+  border-top: 1.5px solid var(--ink);
 }
 
 .lane {
   display: grid;
-  grid-template-columns: minmax(130px, 170px) 1fr minmax(210px, auto);
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 6px 14px;
   align-items: center;
-  gap: 16px;
-  padding: 13px 0;
+  padding: 10px 8px 10px 0;
   border-bottom: 1px solid var(--rule-soft);
 }
 
-.lane .who {
+.lane.chosen {
+  background: var(--inset);
+}
+
+.who {
   display: flex;
-  align-items: baseline;
-  gap: 9px;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
-.lane .dot {
+.who .dot {
   width: 9px;
   height: 9px;
   flex: none;
-  align-self: center;
 }
 
-.lane .name {
-  font-family: var(--mono);
-  font-size: 13.5px;
-  white-space: nowrap;
+.who .name {
+  font-size: 14px;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.lane.chosen .name {
-  font-weight: 600;
+.who .pick {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 0 5px;
+  border: 1px solid var(--ink);
+  color: var(--ink);
 }
 
-.lane .pick {
-  font-size: 11px;
-  color: var(--ok);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.bar {
+.lane .bar {
   display: flex;
-  height: 26px;
+  height: 17px;
   background: var(--rule-soft);
-  overflow: hidden;
 }
 
-.bar > span {
+.lane .bar span {
   display: block;
   height: 100%;
-  min-width: 0;
 }
 
-.bar .seg-latency {
-  background: var(--seg);
+.seg-latency {
+  background: var(--seg, var(--p0));
 }
 
-.bar .seg-error {
+.seg-error {
   background: var(--down);
-  opacity: 0.85;
 }
 
-.bar .seg-queue {
+.seg-queue {
   background: var(--ink-faint);
 }
 
-.bar .seg-cost {
-  background: var(--seg);
-  opacity: 0.32;
+.seg-cost {
+  background: var(--seg, var(--p0));
+  opacity: 0.3;
 }
 
-.lane .figs {
+.figs {
+  grid-column: 2;
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 4px 18px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--ink-soft);
-  justify-content: flex-end;
-  white-space: nowrap;
 }
 
-.lane .figs b {
+.figs b {
   color: var(--ink);
-  font-weight: 500;
-}
-
-.breaker {
-  font-family: var(--mono);
-  font-size: 11px;
-  padding: 1px 6px;
-  border: 1px solid var(--rule);
-  color: var(--ink-faint);
-}
-
-.breaker.open {
-  color: var(--down);
-  border-color: var(--down);
-}
-
-.breaker.half_open {
-  color: var(--warn);
-  border-color: var(--warn);
+  font-weight: 600;
 }
 
 .key {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px 18px;
-  margin-top: 14px;
+  gap: 6px 18px;
+  margin-top: 12px;
   font-size: 12.5px;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
 }
 
 .key span {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 7px;
 }
@@ -346,72 +684,91 @@ h2 {
 .key i {
   width: 11px;
   height: 11px;
+  flex: none;
   display: inline-block;
 }
 
-/* -- the tape -------------------------------------------------------- */
+/* -- tuning knobs ----------------------------------------------------- */
+
+.tuning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+  margin-top: 18px;
+  padding: 13px 15px;
+  background: var(--inset);
+  border-left: 3px solid var(--rule);
+}
+
+.tuning label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.tuning input[type="range"] {
+  accent-color: var(--ink);
+  width: 128px;
+}
+
+.tuning .val {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+/* -- the tape --------------------------------------------------------- */
 
 .tape {
   display: flex;
-  gap: 2px;
-  height: 52px;
   align-items: flex-end;
-  overflow: hidden;
+  gap: 1px;
+  height: 54px;
+  padding: 0 6px;
+  background: var(--inset);
+  border-bottom: 1.5px solid var(--ink);
 }
 
-.tape .tick {
+.tick {
   flex: 1 1 0;
-  min-width: 2px;
-  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
 }
 
-.tape .tick .body {
-  width: 100%;
+.tick .body {
   display: block;
+  width: 100%;
 }
 
-.tape .tick.failed .body {
+.tick.failed .body {
   background: var(--down) !important;
 }
 
 .tape-axis {
   display: flex;
   justify-content: space-between;
+  margin-top: 5px;
   font-family: var(--mono);
   font-size: 11px;
   color: var(--ink-faint);
-  margin-top: 7px;
 }
 
-/* -- timeline -------------------------------------------------------- */
-
-svg.spark {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-svg.spark .rule {
-  stroke: var(--rule-soft);
-}
-
-svg.spark text {
-  font-family: var(--mono);
-  font-size: 10px;
-  fill: var(--ink-faint);
-}
-
-/* -- figures --------------------------------------------------------- */
+/* -- totals ----------------------------------------------------------- */
 
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  border-top: 1px solid var(--rule);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1.5px solid var(--ink);
   border-bottom: 1px solid var(--rule);
 }
 
 .tiles > div {
-  padding: 12px 16px 12px 0;
+  padding: 11px 12px 12px;
   border-right: 1px solid var(--rule-soft);
 }
 
@@ -423,381 +780,88 @@ svg.spark text {
   display: block;
   font-family: var(--mono);
   font-size: 20px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 .tiles .k {
   display: block;
   font-size: 12px;
-  color: var(--ink-faint);
-  margin-top: 1px;
-}
-
-/* -- tables ---------------------------------------------------------- */
-
-.scroll {
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-thead th {
-  text-align: left;
-  font-weight: 600;
-  font-size: 12px;
   color: var(--ink-soft);
-  padding: 0 12px 7px 0;
-  border-bottom: 1px solid var(--rule);
-  white-space: nowrap;
 }
 
-tbody td {
-  padding: 6px 12px 6px 0;
-  border-bottom: 1px solid var(--rule-soft);
-  white-space: nowrap;
-}
-
-td.num,
-th.num {
-  text-align: right;
-  font-size: 12.5px;
-}
-
-thead th:first-child,
-tbody td:first-child {
-  width: 99%;
-}
-
-tbody tr.bad td {
-  color: var(--down);
-}
-
-.state {
-  border-left: 2px solid var(--rule);
-  padding: 2px 0 2px 15px;
-  color: var(--ink-soft);
-  font-size: 14px;
-  max-width: 70ch;
-}
-
-.state.err {
-  border-left-color: var(--down);
-}
-
-code {
-  font-family: var(--mono);
-  font-size: 12.5px;
-}
+/* -- foot ------------------------------------------------------------- */
 
 footer {
+  margin-top: 34px;
+  padding-top: 15px;
   border-top: 1px solid var(--rule);
-  padding-top: 16px;
+  max-width: 76ch;
   color: var(--ink-faint);
-  font-size: 13px;
-  max-width: 78ch;
+  font-size: 13.5px;
 }
 
-@media (max-width: 760px) {
+/* -- narrow ----------------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .tiles > div:nth-child(4n) {
+    border-right: 0;
+  }
+
+  .tiles > div:nth-child(-n + 4) {
+    border-bottom: 1px solid var(--rule-soft);
+  }
+}
+
+@media (max-width: 620px) {
+  header.top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .controls {
+    grid-row: auto;
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  /* the middle caption is the first thing to go when the strip is only a
+   * few hundred pixels wide; the two ends are what orient a reader */
+  .tape-axis span:nth-child(2) {
+    display: none;
+  }
+
+  .tailrow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .tailrow .pol {
+    padding-left: 0;
+  }
+
+  .tailscale,
+  .tailkey {
+    margin-left: 0;
+  }
+
   .lane {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr);
   }
-  .lane .figs {
-    justify-content: flex-start;
+
+  .figs {
+    grid-column: 1;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition-duration: 0.001ms !important;
-    animation-duration: 0.001ms !important;
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
 
-/* -- the flow -------------------------------------------------------- */
-
-.flowwrap {
-  overflow-x: auto;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-  padding: 6px 0;
-}
-
-svg.flow {
-  display: block;
-  width: 100%;
-  min-width: 720px;
-  height: auto;
-}
-
-svg.flow .gate {
-  fill: var(--panel);
-  stroke: var(--ink-soft);
-  stroke-width: 1;
-}
-
-svg.flow .gatename {
-  font-family: var(--sans);
-  font-size: 15px;
-  font-weight: 700;
-  fill: var(--ink);
-  letter-spacing: -0.02em;
-}
-
-svg.flow .gatesub,
-svg.flow .inbound {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  fill: var(--ink-faint);
-}
-
-svg.flow .pname {
-  font-family: var(--mono);
-  font-size: 13px;
-  fill: var(--ink);
-}
-
-svg.flow .pshare {
-  font-family: var(--mono);
-  font-size: 12px;
-  fill: var(--ink-soft);
-}
-
-svg.flow .pstat {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  fill: var(--ink-faint);
-}
-
-svg.flow .brk {
-  fill: none;
-  stroke: var(--rule);
-  stroke-width: 1;
-}
-
-svg.flow .brk-open {
-  stroke: var(--down);
-}
-
-svg.flow .brk-half_open {
-  stroke: var(--warn);
-}
-
-svg.flow text.brktext {
-  font-family: var(--mono);
-  font-size: 10px;
-  fill: var(--ink-faint);
-}
-
-svg.flow text.brk-open {
-  fill: var(--down);
-}
-
-svg.flow text.brk-half_open {
-  fill: var(--warn);
-}
-
-/* -- motion ----------------------------------------------------------
- *
- * The console polls every two seconds and used to repaint silently, which
- * made a live system look like a screenshot. Everything that moves here is
- * answering a change in the data: a ribbon that thickens because traffic
- * shifted, a figure that counts to its new value, a tick arriving on the
- * tape. Nothing loops, nothing animates on load for decoration, and all of
- * it is off under prefers-reduced-motion.
- */
-
-svg.flow path {
-  transition: stroke-width 700ms cubic-bezier(0.22, 0.9, 0.3, 1),
-    stroke-opacity 400ms ease, stroke 400ms ease;
-}
-
-svg.flow .gate {
-  transition: stroke 300ms ease;
-}
-
-svg.flow .node-hit {
-  cursor: pointer;
-  fill: transparent;
-}
-
-svg.flow .node-hit:hover + .node-ring,
-svg.flow .node-hit:focus-visible + .node-ring {
-  opacity: 1;
-}
-
-svg.flow .node-ring {
-  fill: none;
-  stroke: var(--ink-soft);
-  stroke-width: 1;
-  opacity: 0;
-  transition: opacity 160ms ease;
-  pointer-events: none;
-}
-
-svg.flow .drainhint {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  fill: var(--ink-faint);
-  opacity: 0;
-  transition: opacity 160ms ease;
-  pointer-events: none;
-}
-
-svg.flow .node-hit:hover ~ .drainhint,
-svg.flow .node-hit:focus-visible ~ .drainhint {
-  opacity: 1;
-}
-
-@keyframes arrive {
-  from {
-    transform: scaleY(0.2);
-    opacity: 0;
+  .tiles > div:nth-child(2n) {
+    border-right: 0;
   }
-  to {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
-
-.tape .tick .body {
-  transform-origin: bottom;
-}
-
-.tape .tick.fresh .body {
-  animation: arrive 360ms cubic-bezier(0.22, 0.9, 0.3, 1);
-}
-
-@keyframes livepulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.livedot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--ok);
-  display: inline-block;
-  animation: livepulse 1.6s ease-in-out infinite;
-}
-
-/* -- controls -------------------------------------------------------- */
-
-button.go.streaming {
-  background: var(--down);
-  border-color: var(--down);
-}
-
-.tuning {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px 30px;
-  align-items: center;
-  padding: 14px 0 0;
-}
-
-.tuning label {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-
-.tuning .val {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--ink);
-  min-width: 3.4ch;
-  text-align: right;
-}
-
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 142px;
-  height: 3px;
-  background: var(--rule);
-  outline: none;
-  cursor: pointer;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  background: var(--p0);
-  cursor: pointer;
-  border: 0;
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  background: var(--p0);
-  cursor: pointer;
-  border: 0;
-  border-radius: 0;
-}
-
-.tiles .v {
-  font-variant-numeric: tabular-nums;
-}
-
-/* -- the benchmark --------------------------------------------------- */
-
-.headline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 24px;
-  padding: 16px 0 20px;
-  border-top: 1px solid var(--rule);
-  margin-bottom: 18px;
-}
-
-.headline .hbig {
-  font-family: var(--mono);
-  font-size: clamp(30px, 5vw, 46px);
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  color: var(--p0);
-}
-
-.headline .hsays {
-  font-size: 14.5px;
-  color: var(--ink-soft);
-  max-width: 58ch;
-}
-
-/* A bar behind the policy name, so the table is also a chart and the
- * reader does not have to compare four numbers in their head. */
-.p95bar {
-  height: 3px;
-  background: var(--rule-soft);
-  margin-bottom: 6px;
-  max-width: 280px;
-}
-
-.p95bar span {
-  display: block;
-  height: 100%;
-  background: var(--ink-faint);
-}
-
-.p95bar span.win {
-  background: var(--p0);
 }

@@ -153,262 +153,270 @@ export default function App() {
   if (stats.error && !s) {
     return (
       <div className="shell">
-        <header className="top">
-          <h1>relay</h1>
-        </header>
-        <div className="state err">
-          <p>The gateway is not answering: {stats.error}</p>
-          <p>
-            Start it with{" "}
-            <code>uvicorn relay.api.app:app --app-dir src --reload</code>.
-          </p>
-        </div>
+        <article className="sheet">
+          <header className="top">
+            <h1>relay</h1>
+          </header>
+          <div className="state err">
+            <p>The gateway is not answering: {stats.error}</p>
+            <p>
+              Start it with{" "}
+              <code>uvicorn relay.api.app:app --app-dir src --reload</code>.
+            </p>
+          </div>
+        </article>
       </div>
     );
   }
 
   return (
     <div className="shell">
-      <header className="top">
-        <h1>relay</h1>
-        <p>
-          An LLM gateway that picks a provider from live latency, error rate
-          and queue depth — and shows the arithmetic behind every choice.
-        </p>
-        <div className="controls">
-          {streaming && (
-            <span
-              className="fig"
-              style={{ fontSize: 12, color: "var(--ink-soft)" }}
-            >
-              <i className="livedot" /> live
-            </span>
-          )}
-          {s && (
-            <select
-              disabled={busy || mode === "recorded"}
-              value={policy}
-              onChange={(e) =>
-                void act(
-                  () =>
-                    getJSON(`/admin/policy/${e.target.value}`, {
-                      method: "POST",
-                    }),
-                  "could not switch policy",
-                )
-              }
-              aria-label="Routing policy"
-            >
-              {s.policies.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          )}
-          {s?.demo_mode && mode !== "recorded" && (
-            <button
-              className={`go${streaming ? " streaming" : ""}`}
-              onClick={() => setStreaming(!streaming)}
-            >
-              {streaming ? "Stop traffic" : "Start traffic"}
-            </button>
-          )}
-          <button onClick={toggleTheme}>
-            {theme === "dark" ? "Light" : "Dark"}
-          </button>
-        </div>
-      </header>
+      <article className="sheet">
+            <header className="top">
+              <h1>relay</h1>
+              <p>
+                A switchboard for language models. Every call is routed to the
+                trunk that is behaving best right now — live latency, error rate
+                and queue depth — and the arithmetic behind each choice is on this
+                sheet.
+              </p>
+              <div className="controls">
+                {streaming && (
+                  <span
+                    className="fig"
+                    style={{ fontSize: 12, color: "var(--ink-soft)" }}
+                  >
+                    <i className="livedot" /> live
+                  </span>
+                )}
+                {s && (
+                  <select
+                    disabled={busy || mode === "recorded"}
+                    value={policy}
+                    onChange={(e) =>
+                      void act(
+                        () =>
+                          getJSON(`/admin/policy/${e.target.value}`, {
+                            method: "POST",
+                          }),
+                        "could not switch policy",
+                      )
+                    }
+                    aria-label="Routing policy"
+                  >
+                    {s.policies.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {s?.demo_mode && mode !== "recorded" && (
+                  <button
+                    className={`go${streaming ? " streaming" : ""}`}
+                    onClick={() => setStreaming(!streaming)}
+                  >
+                    {streaming ? "Stop traffic" : "Start traffic"}
+                  </button>
+                )}
+                <button onClick={toggleTheme}>
+                  {theme === "dark" ? "Light" : "Dark"}
+                </button>
+              </div>
+            </header>
 
-      {note && (
-        <p className="state err" style={{ marginBottom: 20 }}>
-          {note}
-        </p>
-      )}
+            {note && (
+              <p className="state err" style={{ marginBottom: 20 }}>
+                {note}
+              </p>
+            )}
 
-      {mode === "recorded" && (
-        <p className="state" style={{ marginBottom: 22 }}>
-          <b>No gateway behind this page.</b> The comparison below is
-          reproducible by construction and is the real result — the four
-          policies are replayed against identical provider behaviour, so
-          the same numbers come out anywhere. The live panels under it are
-          a frozen sample of one run's traffic, and the controls that would
-          need a process are hidden rather than left to fail. Run{" "}
-          <code>uvicorn relay.api.app:app --app-dir src</code> for the
-          working one.
-        </p>
-      )}
+            {mode === "recorded" && (
+              <p className="state" style={{ marginBottom: 22 }}>
+                <b>No gateway behind this page.</b> The comparison below is
+                reproducible by construction and is the real result — the four
+                policies are replayed against identical provider behaviour, so
+                the same numbers come out anywhere. The live panels under it are
+                a frozen sample of one run's traffic, and the controls that would
+                need a process are hidden rather than left to fail. Run{" "}
+                <code>uvicorn relay.api.app:app --app-dir src</code> for the
+                working one.
+              </p>
+            )}
 
-      {bench && (
-        <section>
-          <h2>The controlled comparison</h2>
-          <p className="sub">
-            One trace of {bench.requests.toLocaleString()} requests replayed
-            through all four policies, with provider latency and failure
-            held byte-identical across the runs — so the only thing that
-            differs is where each request was sent.
-          </p>
-          <Benchmark data={bench} />
-        </section>
-      )}
+            {bench && (
+              <section>
+                <h2>The controlled comparison</h2>
+                <p className="sub">
+                  One trace of {bench.requests.toLocaleString()} requests replayed
+                  through all four policies, with provider latency and failure
+                  held byte-identical across the runs — so the only thing that
+                  differs is where each request was sent.
+                </p>
+                <Benchmark data={bench} />
+              </section>
+            )}
 
-      <section>
-        <h2>Where the traffic went</h2>
-        <p className="sub">
-          Ribbon thickness is each provider's share of the requests served.
-          Change the policy, or click a provider to take it out of rotation,
-          and watch the ribbons rebalance — that shift is the whole claim of
-          the project, and no average shows it.
-        </p>
-        {s ? (
-          <Flow
-            providers={s.live.providers}
-            policy={policy}
-            totalRequests={s.live.served}
-            onToggleProvider={mode === "recorded" ? undefined : (provider, drain) =>
-              void act(
-                () =>
-                  getJSON(
-                    `/admin/breaker/${provider}/${drain ? "drain" : "reset"}`,
-                    { method: "POST" },
-                  ),
-                "could not change the provider's state",
-              )
-            }
-          />
-        ) : (
-          <p className="state">Loading.</p>
-        )}
-      </section>
+            <section>
+              <h2>Down which trunk</h2>
+              <p className="sub">
+                Line thickness is each trunk's share of the calls served, and the
+                breaker is drawn as what it is: a knife switch in the line. Change
+                the policy, or click a trunk to throw its switch, and watch the
+                traffic rebalance — that shift is the whole claim of the project,
+                and no average shows it.
+              </p>
+              {s ? (
+                <Flow
+                  providers={s.live.providers}
+                  policy={policy}
+                  totalRequests={s.live.served}
+                  onToggleProvider={mode === "recorded" ? undefined : (provider, drain) =>
+                    void act(
+                      () =>
+                        getJSON(
+                          `/admin/breaker/${provider}/${drain ? "drain" : "reset"}`,
+                          { method: "POST" },
+                        ),
+                      "could not change the provider's state",
+                    )
+                  }
+                />
+              ) : (
+                <p className="state">Loading.</p>
+              )}
+            </section>
 
-      <section>
-        <h2>Why it went there</h2>
-        <p className="sub">
-          The adaptive policy scores each provider and sends to the lowest.
-          Each bar is that score, split into what produced it — so a provider
-          that is fast but expensive looks different from one that is simply
-          slow. The other three policies do not score at all.
-        </p>
-        {s ? <Decision ranking={s.live.ranking} policy={policy} /> : null}
+            <section>
+              <h2>Why it went there</h2>
+              <p className="sub">
+                The adaptive policy scores each provider and sends to the lowest.
+                Each bar is that score, split into what produced it — so a provider
+                that is fast but expensive looks different from one that is simply
+                slow. The other three policies do not score at all.
+              </p>
+              {s ? <Decision ranking={s.live.ranking} policy={policy} /> : null}
 
-        {policy === "adaptive" && mode !== "recorded" && (
-          <div className="tuning">
-            <label>
-              tail weight
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={tail}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setTail(v);
-                  void retune(v, penalty);
-                }}
-              />
-              <span className="val">{tail.toFixed(2)}</span>
-            </label>
-            <label>
-              error penalty
-              <input
-                type="range"
-                min={0}
-                max={12}
-                step={0.5}
-                value={penalty}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setPenalty(v);
-                  void retune(tail, v);
-                }}
-              />
-              <span className="val">{penalty.toFixed(1)}</span>
-            </label>
-            <span style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>
-              Move either and the ranking reorders live. At tail weight 1 the
-              router judges purely on the tail; at 0, purely on the median.
-            </span>
-          </div>
-        )}
-      </section>
+              {policy === "adaptive" && mode !== "recorded" && (
+                <div className="tuning">
+                  <label>
+                    tail weight
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={tail}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setTail(v);
+                        void retune(v, penalty);
+                      }}
+                    />
+                    <span className="val">{tail.toFixed(2)}</span>
+                  </label>
+                  <label>
+                    error penalty
+                    <input
+                      type="range"
+                      min={0}
+                      max={12}
+                      step={0.5}
+                      value={penalty}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setPenalty(v);
+                        void retune(tail, v);
+                      }}
+                    />
+                    <span className="val">{penalty.toFixed(1)}</span>
+                  </label>
+                  <span style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>
+                    Move either and the ranking reorders live. At tail weight 1 the
+                    router judges purely on the tail; at 0, purely on the median.
+                  </span>
+                </div>
+              )}
+            </section>
 
-      <section>
-        <h2>Every request, in order</h2>
-        <p className="sub">
-          One tick per request, coloured by who served it and as tall as it
-          was slow. New requests arrive on the right.
-        </p>
-        <Tape rows={rows} ranking={s?.live.ranking ?? []} />
-      </section>
+            <section>
+              <h2>Every call, in order</h2>
+              <p className="sub">
+                One tick per call, coloured by the trunk that carried it and as
+                tall as it was slow. The newest arrive on the right, so a breaker
+                opening reads as a change of colour part way along.
+              </p>
+              <Tape rows={rows} ranking={s?.live.ranking ?? []} />
+            </section>
 
-      {s && (
-        <section>
-          <h2>Totals</h2>
-          <div className="tiles">
-            <Tile
-              value={s.totals.requests}
-              label="requests"
-              render={(v) => Math.round(v).toLocaleString()}
-            />
-            <Tile value={s.totals.p50_ms} label="p50" render={ms} />
-            <Tile value={s.totals.p95_ms} label="p95" render={ms} />
-            <Tile value={s.totals.p99_ms} label="p99" render={ms} />
-            <Tile
-              value={s.totals.failovers}
-              label="fail-overs"
-              render={(v) => String(Math.round(v))}
-            />
-            <Tile
-              value={s.totals.failures}
-              label="failed"
-              render={(v) => String(Math.round(v))}
-            />
-            <Tile value={s.totals.cost_usd} label="spent" render={usd} />
-          </div>
-        </section>
-      )}
+            {s && (
+              <section>
+                <h2>Totals</h2>
+                <div className="tiles">
+                  <Tile
+                    value={s.totals.requests}
+                    label="requests"
+                    render={(v) => Math.round(v).toLocaleString()}
+                  />
+                  <Tile value={s.totals.p50_ms} label="p50" render={ms} />
+                  <Tile value={s.totals.p95_ms} label="p95" render={ms} />
+                  <Tile value={s.totals.p99_ms} label="p99" render={ms} />
+                  <Tile
+                    value={s.totals.failovers}
+                    label="fail-overs"
+                    render={(v) => String(Math.round(v))}
+                  />
+                  <Tile
+                    value={s.totals.failures}
+                    label="failed"
+                    render={(v) => String(Math.round(v))}
+                  />
+                  <Tile value={s.totals.cost_usd} label="spent" render={usd} />
+                </div>
+              </section>
+            )}
 
-      {rows.length > 0 && (
-        <section>
-          <h2>The last ten requests</h2>
-          <div className="scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Request</th>
-                  <th>Served by</th>
-                  <th className="num">Latency</th>
-                  <th className="num">Fail-overs</th>
-                  <th className="num">Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.slice(0, 10).map((r) => (
-                  <tr key={r.request_id} className={r.ok ? undefined : "bad"}>
-                    <td>
-                      <span className="fig">{r.request_id.slice(-8)}</span>
-                      {!r.ok && r.error && ` — ${r.error}`}
-                    </td>
-                    <td>{r.provider ?? "—"}</td>
-                    <td className="num">{ms(r.latency_ms)}</td>
-                    <td className="num">{r.failovers || ""}</td>
-                    <td className="num">{usd(r.cost_usd)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+            {rows.length > 0 && (
+              <section>
+                <h2>The last ten requests</h2>
+                <div className="scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Request</th>
+                        <th>Served by</th>
+                        <th className="num">Latency</th>
+                        <th className="num">Fail-overs</th>
+                        <th className="num">Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.slice(0, 10).map((r) => (
+                        <tr key={r.request_id} className={r.ok ? undefined : "bad"}>
+                          <td>
+                            <span className="fig">{r.request_id.slice(-8)}</span>
+                            {!r.ok && r.error && ` — ${r.error}`}
+                          </td>
+                          <td>{r.provider ?? "—"}</td>
+                          <td className="num">{ms(r.latency_ms)}</td>
+                          <td className="num">{r.failovers || ""}</td>
+                          <td className="num">{usd(r.cost_usd)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
 
-      <footer>
-        Point any OpenAI client at <code>/v1</code> and it gains fail-over,
-        health-aware routing and per-request cost accounting without changing
-        its own code. On a replayed trace of 4,000 requests, adaptive routing
-        cut p95 latency 71.8% and circuit-breaker trips 81% against the static
-        fallback list most gateways ship.
-      </footer>
+            <footer>
+              Point any OpenAI client at <code>/v1</code> and it gains fail-over,
+              health-aware routing and per-request cost accounting without changing
+              its own code. On a replayed trace of 4,000 requests, adaptive routing
+              cut p95 latency 71.8% and circuit-breaker trips 81% against the static
+              fallback list most gateways ship.
+            </footer>
+      </article>
     </div>
   );
 }
